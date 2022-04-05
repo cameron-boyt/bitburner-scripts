@@ -1,0 +1,67 @@
+Start Agri
+Buy Smart Supply
+Get all Offices 3 people each Operations/Engineer/Business
+1 x Advert.Inc
+300 Storage on each
+Hardware 125 (12.5), AI Cores 75 (7.5), Real Estate 27k (2.7k)
+Upgrades +1 level in this order (+2 max): FocusWires, Neural Accelerators, Speech Processor Implants, Nuoptimal Nootropic Injector Implants, Smart Factories
+
+INVESTMENT
+
+Upgrade all offices to 9, 2 Operations, 2 Engineering, 1 Business, 2 Management, 2 R & D
+
+~160b remaining
+
+Smart Factories + Smart Storage to 10
+
+~110b remaining
+
+7 wh upgrades per city (2k storage each)
+
+~45b remaining
+
+Hardware 2675 (267.5)
+Robots 96 (9.6)
+AI Cores 2445 (244.5)
+Real Estate 119400 (11940)
+
+Get ~5t investment
+
+Start Tobacco
+
+Get all offices
+
+SMart Storage 30, DreamSense 10, project insigt 20
+FocusWires, Neural Accelerators, Speech Processor Implants, Nuoptimal Nootropic Injector Implants to 30
+
+upgrade warhouse to 5k each
+Buy AdVert/Wilson on rotation of cheapest
+
+//////////
+
+
+Cooking the books
+
+Start software
+Buy Smart Supply
+get all 6 citys
+get 900 storage in each (smart + buy)
+set ai to sell 0 at MP
+get exactly 3 research
+then 1 in each operation / engineer / Manager
+at 800+ storage full set sell MAX at MP on all
+go get investment
+
+Aevum Employee: 90 even spread
+other cities: 30 even spread
+
+SMart Storage 30, DreamSense 10, project insigt 20
+FocusWires, Neural Accelerators, Speech Processor Implants, Nuoptimal Nootropic Injector Implants to 30
+
+10k storeage on all cities
+
+while (fund) {
+    level up Wilson Analytics
+}
+
+buy ads
