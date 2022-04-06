@@ -61,7 +61,7 @@ export async function main(ns: NS) : Promise<void> {
         solutions.forEach((sol) => {
             const eligibleTxns = pruned.filter((txn) => sol.every((t) => t.buyday !== txn.sellday && t.sellday !== txn.buyday));
 
-            for (j = 0; j < sol.length; j++) {
+            for (let j = 0; j < sol.length; j++) {
 
             }
             eligibleTxns.forEach((txn) => tmpSolutions.push([...sol, txn]));

@@ -28,4 +28,5 @@
     "typescript.format.semicolons": "insert",
     "typescript.preferences.quoteStyle": "single",
     "typescript.suggest.completeFunctionCalls": true,
+    "bitburner.authToken": "g1FvW0Faqcd5mbMDKVZ+d9nU5OrVYcGz25Y2Pp8lgx8lty8R/bPb29SRaPiONE1Z",
 }

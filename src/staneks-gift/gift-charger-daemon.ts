@@ -7,7 +7,7 @@ import { getFreeRam } from '/helpers/server-helper';
 let logger : ScriptLogger;
 
 // Script refresh period
-const refreshPeriod = 1000;
+const refreshPeriod = 5000;
 
 // Flags
 const flagSchema : [string, string | number | boolean | string[]][] = [
@@ -102,7 +102,7 @@ export async function main(ns: NS) : Promise<void> {
 		return;
 	}
 
-	setupEnvironment(ns);
+	await setupEnvironment(ns);
 
 	logger.initialisedMessage(true, false);
 
@@ -115,7 +115,13 @@ export async function main(ns: NS) : Promise<void> {
 			break;
 		}
 
-		const freeRam = getFreeRam(ns, hostname) * 0.8;
+		let reservedRam = 0;
+
+		if (ns.getServerMaxRam(hostname) >= 2048) reservedRam = 1050;
+		else if (ns.getServerMaxRam(hostname) >= 512) reservedRam = 250;
+		else if (ns.getServerMaxRam(hostname) >= 128) reservedRam = 50;
+
+		const freeRam = Math.max(0, getFreeRam(ns, hostname) - reservedRam);
 
         for (const frag of trueFragments) {
             const threads = Math.floor((freeRam / trueFragments.length) / CHARGE_SCRIPT_RAM);

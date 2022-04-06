@@ -414,7 +414,6 @@ function getLargestBlobSize(board : number[][]) : number {
 function getConnectedFree(board : number[][], x : number, y : number) : string[] {
 
 	function getConnectedFreeRecursive(x : number, y : number, found : string[]) : string[] {
-		//console.log(`${x} ${y} ${board[y][x]}`);
 		if ((y > 0 						? board[y - 1][x] === -1 : false) && !found.includes(`${x}${y-1}`)) {
 			found.push(`${x}${y-1}`);
 			found = getConnectedFreeRecursive(x, y - 1, found);
@@ -445,11 +444,6 @@ function getConnectedFree(board : number[][], x : number, y : number) : string[]
 	for (const b of blob) {
 		blobArray[parseInt(b[1])][parseInt(b[0])] = 1;
 	}
-
-	for (const a of blobArray) {
-		console.log(a);
-	}
-	console.log("---");
 
 	return blob;
 }

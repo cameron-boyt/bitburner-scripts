@@ -1,4 +1,4 @@
-import { BitNodeMultipliers, NS  } from '@ns'
+import { BitNodeMultipliers, NS, RunningScript  } from '@ns'
 import { genPlayer, IPlayerObject } from '/libraries/player-factory';
 import { genServer, IServerObject } from '/libraries/server-factory';
 import { MessageType, ScriptLogger } from '/libraries/script-logger';
@@ -126,7 +126,7 @@ async function setupEnvironment(ns : NS) : Promise<void> {
 		return (height >= h && width >= w) || (width >= h && height >= w);
 	}
 
-	ns.ps(machine.hostname).filter((x) => x.filename !== ns.getRunningScript().filename).forEach((script) => ns.kill(script.pid));
+	ns.ps(machine.hostname).filter((x) => x.filename !== (ns.getRunningScript() as RunningScript).filename).forEach((script) => ns.kill(script.pid));
 	ns.tail();
 
 	singleScripts = [
@@ -255,7 +255,7 @@ async function setupEnvironment(ns : NS) : Promise<void> {
 				],
 				condition : async () => (
 					machine.ram.max >= 64 &&
-					(playerInGang() || (player.bitnodeN === 2 && player.karma < -100) || player.karma <= -54000)
+					(await playerInGang() || (player.bitnodeN === 2 && player.karma < -100) || player.karma <= -54000)
 				)
 			}
 		]},
@@ -277,13 +277,14 @@ async function setupEnvironment(ns : NS) : Promise<void> {
 				bonusArgs: [],
 				condition : async () => (
 					player.bitnodeN !== 8 &&
-					!playerInGang() &&
+					machine.ram.max >= 128 &&
+					!await playerInGang() &&
 					stanekLargerThan(2, 3)
 				)
 			},
 			// All game -- ONLY 8
 			{
-				args: ["stock-market-sucks-", "--hacking-speed"],
+				args: ["stock-market-sucks", "--hacking-speed"],
 				bonusArgs: [
 					{
 						args: ["--hacking-skill"],
@@ -296,6 +297,7 @@ async function setupEnvironment(ns : NS) : Promise<void> {
 				],
 				condition : async () => (
 					player.bitnodeN === 8 &&
+					machine.ram.max >= 128 &&
 					stanekLargerThan(2, 3)
 				)
 			},
@@ -321,6 +323,8 @@ async function setupEnvironment(ns : NS) : Promise<void> {
 				],
 				condition : async () => (
 					![6, 7, 8].includes(player.bitnodeN) &&
+					machine.ram.max >= 128 &&
+					await playerInGang() &&
 					stanekLargerThan(2, 3)
 				)
 			},
@@ -335,7 +339,8 @@ async function setupEnvironment(ns : NS) : Promise<void> {
 				],
 				condition : async () => (
 					[6, 7].includes(player.bitnodeN) &&
-					playerInGang() &&
+					machine.ram.max >= 128 &&
+					await playerInGang() &&
 					stanekLargerThan(2, 3)
 				)
 			}
@@ -344,7 +349,10 @@ async function setupEnvironment(ns : NS) : Promise<void> {
 			{
 				args: [],
 				bonusArgs: [],
-				condition: async () => (await runDodgerScript<unknown[]>(ns, "/staneks-gift/dodger/activeFragments.js")).length > 0
+				condition: async () => (
+					(await runDodgerScript<unknown[]>(ns, "/staneks-gift/dodger/activeFragments.js")).length > 0 &&
+					machine.ram.max >= 128
+				)
 			}
 		]},
 		{ name: "/servers/server-purchase-daemon.js", runs: [

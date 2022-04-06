@@ -1,4 +1,4 @@
-import { NS } from '@ns'
+import { NS, RunningScript } from '@ns'
 import { ScriptLogger } from '/libraries/script-logger.js';
 
 /** @param {NS} ns 'ns' namespace parameter. */
@@ -16,7 +16,7 @@ export async function main(ns: NS) : Promise<void> {
 			`Data Writer Daemon Helper:\n`+
 			`Description:\n` +
 			`   Every 10 minutes this script runs the data-writer scripts that store important, but costly to get, information in .txt files.\n` +
-			`Usage: ${ns.getRunningScript().filename}`
+			`Usage: ${(ns.getRunningScript() as RunningScript).filename}`
 		);
 
 		return;
