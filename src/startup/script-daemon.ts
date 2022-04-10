@@ -337,28 +337,11 @@ async function setupEnvironment(ns : NS) : Promise<void> {
 		]},
 		{ name: "/staneks-gift/gift-charger-daemon.js", runs: [
 			{
-				args: ["--reserved-ram", 20],
-				bonusArgs: [],
-				condition: async () => (
-					(await runDodgerScript<unknown[]>(ns, "/staneks-gift/dodger/activeFragments.js")).length > 0 &&
-					machine.ram.max <= 128
-				)
-			},
-			{
 				args: ["--reserved-ram", 50],
 				bonusArgs: [],
 				condition: async () => (
 					(await runDodgerScript<unknown[]>(ns, "/staneks-gift/dodger/activeFragments.js")).length > 0 &&
-					(
-						machine.ram.max > 128 && machine.ram.max <= 1024
-					) ||
-					(
-						machine.ram.max > 1024 &&
-						(
-							(multipliers.CorporationValuation >= 0.2 && !player.hasCorp && player.money < 300e9) ||
-							(multipliers.CorporationValuation < 0.2 || player.hasCorp)
-						)
-					)
+					machine.ram.max <= 2048
 				)
 			},
 			{
@@ -366,8 +349,8 @@ async function setupEnvironment(ns : NS) : Promise<void> {
 				bonusArgs: [],
 				condition: async () => (
 					(await runDodgerScript<unknown[]>(ns, "/staneks-gift/dodger/activeFragments.js")).length > 0 &&
-					machine.ram.max > 1024 &&
-					(multipliers.CorporationValuation >= 0.2 && !player.hasCorp && player.money >= 300e9)
+					machine.ram.max > 2048 &&
+					multipliers.CorporationValuation >= 0.2
 				)
 			}
 		]},

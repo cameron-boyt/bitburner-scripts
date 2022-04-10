@@ -15,7 +15,7 @@ export async function runDodgerScript<T>(ns : NS, script : string, ...args : (st
     const uid = generateUID(script);
     //ns.print(`Creating ${uid}`);
 
-    if (getFreeRam(ns, "home") < ns.getScriptRam(script)) {
+    while (getFreeRam(ns, "home") < ns.getScriptRam(script)) {
         await ns.asleep(5);
     }
 
@@ -70,7 +70,7 @@ export async function runDodgerScriptBulk(ns : NS, scripts : IScriptRun[]) : Pro
     const runs = generateBulkUIDs(scripts);
 
     for (const s of runs) {
-        if (getFreeRam(ns, "home") < ns.getScriptRam(s.script)) {
+        while (getFreeRam(ns, "home") < ns.getScriptRam(s.script)) {
             await ns.asleep(5);
         }
 

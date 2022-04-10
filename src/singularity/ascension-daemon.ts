@@ -185,6 +185,9 @@ async function purchaseAugsAndReset(ns : NS, basket : IAugmentPurchase[]) : Prom
 
     for (const aug of basket) { ns.purchaseAugmentation(aug.faction, aug.augment); }
 
+    ns.ps().filter((proc) => proc.filename !== ns.getRunningScript()?.filename).forEach((proc) => ns.kill(proc.pid));
+    await ns.asleep(5000);
+
     ns.spawn("/singularity/timewarp.js");
 }
 
