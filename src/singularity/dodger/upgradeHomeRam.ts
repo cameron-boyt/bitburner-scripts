@@ -3,7 +3,7 @@ import { NS } from '@ns'
 export async function main(ns : NS) : Promise<void> {
     const uid = ns.args[0] as number;
 
-    const result = ns.upgradeHomeRam();
+    const result = ns.singularity.upgradeHomeRam();
 
     const filename = `/tmp/${uid}.txt`;
     await ns.write(filename, JSON.stringify(result), 'w');

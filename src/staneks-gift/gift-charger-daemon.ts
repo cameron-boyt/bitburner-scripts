@@ -7,7 +7,7 @@ import { getFreeRam } from '/helpers/server-helper';
 let logger : ScriptLogger;
 
 // Script refresh period
-const refreshPeriod = 5000;
+const refreshPeriod = 1000;
 
 // Flags
 const flagSchema : [string, string | number | boolean | string[]][] = [
@@ -17,27 +17,15 @@ const flagSchema : [string, string | number | boolean | string[]][] = [
     ["verbose", false],
     ["d", false],
     ["debug", false],
-    ["hacking-skill", false],
-    ["hacking-speed", false],
-    ["hacking-power", false],
-    ["grow-power", false],
-    ["strength-skill", false],
-    ["defense-skill", false],
-    ["dexterity-skill", false],
-    ["agility-skill", false],
-    ["charisma-skill", false],
-    ["hacknet-production", false],
-    ["hacknet-cost", false],
-    ["reputation-gain", false],
-    ["work-money", false],
-    ["crime-money", false],
-    ["bladeburner-stats", false]
+    ["reserved-ram", 0]
 ];
 
 // Flag set variables
 let help = false; // Print help
 let verbose = false; // Log in verbose mode
 let debug = false; // Log in debug mode
+
+let reservedRam = 0; // Amount of RAM that will be kept unused when charging fragments
 
 /*
  * > SCRIPT VARIABLES <
@@ -81,6 +69,7 @@ export async function main(ns: NS) : Promise<void> {
 	help = flags.h || flags["help"];
 	verbose = flags.v || flags["verbose"];
 	debug = flags.d || flags["debug"];
+	reservedRam = flags["reserved-ram"];
 
 	if (verbose) logger.setLogLevel(2);
 	if (debug) 	 logger.setLogLevel(3);
@@ -114,12 +103,6 @@ export async function main(ns: NS) : Promise<void> {
 			logger.log("No fragments on board - exiting.", { type: MessageType.warning });
 			break;
 		}
-
-		let reservedRam = 0;
-
-		if (ns.getServerMaxRam(hostname) >= 2048) reservedRam = 1050;
-		else if (ns.getServerMaxRam(hostname) >= 512) reservedRam = 250;
-		else if (ns.getServerMaxRam(hostname) >= 128) reservedRam = 50;
 
 		const freeRam = Math.max(0, getFreeRam(ns, hostname) - reservedRam);
 

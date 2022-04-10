@@ -107,11 +107,11 @@ export function calculateWantedLevelGain(gang : GangGenInfo, member : GangMember
 	let xp = 0;
 
 	//xp += (task.hackWeight / weightDivisor) * difficultyMult * ((member.hack_mult - 1) / 4 + 1) * Math.max(Math.pow(member.hack_asc_mult / 2000, 0.5), 1);
-	//xp += (task.strWeight  / weightDivisor) * difficultyMult * ((member.str_mult  - 1) / 4 + 1) * Math.max(Math.pow(member.str_asc_mult / 2000, 0.5), 1);
+	xp += (task.strWeight  / weightDivisor) * difficultyMult * ((member.str_mult  - 1) / 4 + 1) * Math.max(Math.pow(member.str_asc_mult / 2000, 0.5), 1);
 	xp += (task.defWeight  / weightDivisor) * difficultyMult * ((member.def_mult  - 1) / 4 + 1) * Math.max(Math.pow(member.def_asc_mult / 2000, 0.5), 1);
-	//xp += (task.dexWeight  / weightDivisor) * difficultyMult * ((member.dex_mult  - 1) / 4 + 1) * Math.max(Math.pow(member.dex_asc_mult / 2000, 0.5), 1);
+	xp += (task.dexWeight  / weightDivisor) * difficultyMult * ((member.dex_mult  - 1) / 4 + 1) * Math.max(Math.pow(member.dex_asc_mult / 2000, 0.5), 1);
 	//xp += (task.agiWeight  / weightDivisor) * difficultyMult * ((member.agi_mult  - 1) / 4 + 1) * Math.max(Math.pow(member.agi_asc_mult / 2000, 0.5), 1);
-	//xp += (task.chaWeight  / weightDivisor) * difficultyMult * ((member.cha_mult  - 1) / 4 + 1) * Math.max(Math.pow(member.cha_asc_points / 2000, 0.5), 1);
+	xp += (task.chaWeight  / weightDivisor) * difficultyMult * ((member.cha_mult  - 1) / 4 + 1) * Math.max(Math.pow(member.cha_asc_points / 2000, 0.5), 1);
 
 	return xp;
 }

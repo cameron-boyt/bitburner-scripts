@@ -46,9 +46,6 @@ let machine : IServerObject;
 /** Bitnode Multpliers */
 let multipliers : BitNodeMultipliers;
 
-/** Owned player augmentations. */
-let playerAugments : string[] = [];
-
 /** Purchased server limit. */
 let serverLimit = 0;
 
@@ -259,17 +256,6 @@ async function setupEnvironment(ns : NS) : Promise<void> {
 				)
 			}
 		]},
-		{ name: "/corporation/corporation-daemon.js", runs: [
-			{
-				args: [],
-				bonusArgs: [],
-				condition : async () => (
-					machine.ram.max >= 2048 &&
-					multipliers.CorporationValuation >= 0.25 &&
-					(player.hasCorp || player.money >= 300e9)
-				)
-			}
-		]},
 		{ name: "/staneks-gift/gift-constructor-daemon.js", runs: [
 			// Start of game --- NOT 8
 			{
@@ -335,6 +321,10 @@ async function setupEnvironment(ns : NS) : Promise<void> {
 					{
 						args: ["--hacknet-production", "--hacknet-cost"],
 						condition: async () => stanekLargerThan(5, 5)
+					},
+					{
+						args: ["--agility-skill", "--defense-skill", "--dexterity-skill", "--strength-skill"],
+						condition: async () => stanekLargerThan(6, 7)
 					}
 				],
 				condition : async () => (
@@ -347,11 +337,37 @@ async function setupEnvironment(ns : NS) : Promise<void> {
 		]},
 		{ name: "/staneks-gift/gift-charger-daemon.js", runs: [
 			{
-				args: [],
+				args: ["--reserved-ram", 20],
 				bonusArgs: [],
 				condition: async () => (
 					(await runDodgerScript<unknown[]>(ns, "/staneks-gift/dodger/activeFragments.js")).length > 0 &&
-					machine.ram.max >= 128
+					machine.ram.max <= 128
+				)
+			},
+			{
+				args: ["--reserved-ram", 50],
+				bonusArgs: [],
+				condition: async () => (
+					(await runDodgerScript<unknown[]>(ns, "/staneks-gift/dodger/activeFragments.js")).length > 0 &&
+					(
+						machine.ram.max > 128 && machine.ram.max <= 1024
+					) ||
+					(
+						machine.ram.max > 1024 &&
+						(
+							(multipliers.CorporationValuation >= 0.2 && !player.hasCorp && player.money < 300e9) ||
+							(multipliers.CorporationValuation < 0.2 || player.hasCorp)
+						)
+					)
+				)
+			},
+			{
+				args: ["--reserved-ram", 1050],
+				bonusArgs: [],
+				condition: async () => (
+					(await runDodgerScript<unknown[]>(ns, "/staneks-gift/dodger/activeFragments.js")).length > 0 &&
+					machine.ram.max > 1024 &&
+					(multipliers.CorporationValuation >= 0.2 && !player.hasCorp && player.money >= 300e9)
 				)
 			}
 		]},
@@ -368,6 +384,17 @@ async function setupEnvironment(ns : NS) : Promise<void> {
 				)
 			}
 		]},
+		{ name: "/corporation/corporation-daemon.js", runs: [
+			{
+				args: [],
+				bonusArgs: [],
+				condition : async () => (
+					machine.ram.max >= 2048 &&
+					multipliers.CorporationValuation >= 0.2 &&
+					(player.hasCorp || player.money >= 300e9)
+				)
+			}
+		]},
 		{ name: "/singularity/ascension-daemon.js", runs: [
 			{
 				args: [],
@@ -379,6 +406,13 @@ async function setupEnvironment(ns : NS) : Promise<void> {
 					}}
 				],
 				condition : async () => machine.ram.max >= 2048
+			}
+		]},
+		{ name: "/singularity/faction-invite-daemon.js", runs: [
+			{
+				args: [],
+				bonusArgs: [],
+				condition : async () => machine.ram.max >= 512
 			}
 		]},
 		{ name: "/hacking/hack-daemon.js", runs: [

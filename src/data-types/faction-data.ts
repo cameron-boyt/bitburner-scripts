@@ -25,6 +25,16 @@ export function getFactionWorkTypeFromString(type : string) : FactionWorkType {
     }
 }
 
+export interface IFactionReptuation {
+    faction : string;
+    rep : number;
+}
+
+export interface IFactionAugmentations {
+    faction : string;
+    augments : string[];
+}
+
 export const factionAvailableWorkTypes = [
     { faction: "Illuminati", types: [FactionWorkType.Hacking, FactionWorkType.Field] },
     { faction: "Daedalus", types: [FactionWorkType.Hacking, FactionWorkType.Field] },

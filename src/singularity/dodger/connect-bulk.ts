@@ -7,7 +7,7 @@ export async function main(ns : NS) : Promise<void> {
     let result = true;
 
     for (const hostname of hostnames) {
-        result = ns.connect(hostname);
+        result = ns.singularity.connect(hostname);
         if (!result) break;
     }
 

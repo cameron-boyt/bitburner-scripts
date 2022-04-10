@@ -7,7 +7,7 @@ export async function main(ns : NS) : Promise<void> {
     const result = [];
 
     for (const faction of factions) {
-        result.push({ faction: faction, rep: ns.singularity.getFactionRep(faction) });
+        result.push({ faction: faction, augments: ns.singularity.getAugmentationsFromFaction(faction) });
     }
 
     const filename = `/tmp/${uid}.txt`;

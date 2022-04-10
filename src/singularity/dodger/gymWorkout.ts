@@ -5,7 +5,7 @@ export async function main(ns : NS) : Promise<void> {
     const gymName = ns.args[1] as string;
     const skillName = ns.args[2] as string;
 
-    const result = ns.gymWorkout(gymName, skillName);
+    const result = ns.singularity.gymWorkout(gymName, skillName);
 
     const filename = `/tmp/${uid}.txt`;
     await ns.write(filename, JSON.stringify(result), 'w');

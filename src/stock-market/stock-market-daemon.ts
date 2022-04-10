@@ -786,7 +786,7 @@ export async function main(ns : NS) : Promise<void> {
                 }
             }
 
-            if (!player.hasCorp && multipliers.CorporationValuation >= 0.25 && totalWorth >= 150e9 * 3) {
+            if (!player.hasCorp && multipliers.CorporationValuation >= 0.20 && totalWorth >= 150e9 * 3) {
 
                 logger.log(`Selling stocks in order to found a Corporation`, { type: MessageType.success });
                 for (const stock of stockData.stocks) {
