@@ -86,7 +86,7 @@ export class ScriptLogger {
 		if (config.type === MessageType.debugHigh && this.logLevel < 3) return;
 
 		let prefix = "";
-		let toastType = "";
+		let toastType : "success" | "info" | "warning" | "error" | undefined;
 
 		switch (config.type) {
 			case MessageType.debugLow:

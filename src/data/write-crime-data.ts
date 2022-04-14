@@ -8,7 +8,7 @@ export async function main(ns: NS) : Promise<void> {
     const crimeData : CrimeStats[] = [];
 
     for (const crime of CRIMES) {
-        const stats = ns.getCrimeStats(crime);
+        const stats = ns.singularity.getCrimeStats(crime);
         crimeData.push(stats);
     }
 

@@ -24,8 +24,8 @@ export async function main(ns: NS) : Promise<void> {
     ]
 
     for (const faction of factions) {
-        ns.joinFaction(faction)
+        ns.singularity.joinFaction(faction);
     }
 
-    ns.softReset(ns.getScriptName())
+    ns.singularity.softReset(ns.getScriptName());
 }

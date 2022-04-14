@@ -28,16 +28,16 @@ let verbose = false; // Log in verbose mode
 let debug = false; // Log in debug mode
 let allServers = false; // Whether the script should aim to backdoor all servers.
 
-/* 
+/*
  * > SCRIPT VARIABLES <
 */
 
 /** Player object */
 let player : IPlayerObject;
 
-/* 
+/*
  * ------------------------
- * > ENVIRONMENT SETUP FUNCTION 
+ * > ENVIRONMENT SETUP FUNCTION
  * ------------------------
 */
 
@@ -49,13 +49,13 @@ let player : IPlayerObject;
     player = genPlayer(ns);
 }
 
-/* 
+/*
  * ------------------------
- * > BACKDOOR CHECKER FUNCTION 
+ * > BACKDOOR CHECKER FUNCTION
  * ------------------------
 */
 
-/** 
+/**
  * Given a list of servers, check if we are able to install a backdoor on them (if not already).
  * @param ns NS object parameter.
  * @param servers Array server objects.
@@ -68,13 +68,13 @@ async function checkBackdoor(ns : NS, servers : IServerObject[]) : Promise<void>
 	}
 }
 
-/* 
+/*
  * ------------------------
- * > BACKDOOR INSTALLER FUNCTION 
+ * > BACKDOOR INSTALLER FUNCTION
  * ------------------------
 */
 
-/** 
+/**
  * Given a server, install a backdoor on it.
  * @param ns NS object parameter.
  * @param server Server object for server to have a backdoor installed.
@@ -83,8 +83,8 @@ async function backdoorServer(ns : NS, server : IServerObject) : Promise<void> {
 	const path = getServerPath(ns, ns.getHostname(), server.hostname)
 	const connectPathResult = await runDodgerScript<boolean>(ns, "/singularity/dodger/connect-bulk.js", JSON.stringify(path));
 	if (!connectPathResult) throw new Error(`Failed to connect to server along path: ${path}`);
-	
-	await ns.installBackdoor();	
+
+	await ns.singularity.installBackdoor();
 	logger.log(`Backdoor has been installed on ${server.hostname}`, { type: MessageType.success, logToTerminal: true });
 
 	const connectHomeResult = await runDodgerScript<boolean>(ns, "/singularity/dodger/connect.js", "home");
@@ -92,9 +92,9 @@ async function backdoorServer(ns : NS, server : IServerObject) : Promise<void> {
 }
 
 
-/* 
+/*
  * ------------------------
- * > SERVER ARRAY GETTER FUNCTION 
+ * > SERVER ARRAY GETTER FUNCTION
  * ------------------------
 */
 
@@ -143,7 +143,7 @@ export async function main(ns : NS) : Promise<void> {
 	}
 
 	setupEnvironment(ns);
-	
+
 	logger.initialisedMessage(true, false);
 
 	if (allServers) {

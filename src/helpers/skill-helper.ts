@@ -56,7 +56,7 @@ export function getPlayerSkillLevel(ns : NS, skill : Skill) : number {
 export async function doSkillTraining(ns : NS, skill : Skill, goal : number) : Promise<boolean> {
     const canTrain = await canTrainSkill(ns, skill);
     if (canTrain) {
-        while (ns.isBusy()) { await ns.asleep(1000); }
+        while (ns.singularity.isBusy()) { await ns.asleep(1000); }
         return doTrainSkill(ns, skill, goal);
     } else {
         return false;
@@ -152,7 +152,7 @@ async function doTrainSkill(ns : NS, skill : Skill, goal : number) : Promise<boo
         const result = await runDodgerScript<boolean>(ns, script, location, skillOrCourseName);
         if (!result) return false;
         await ns.asleep(5000);
-        ns.stopAction();
+        ns.singularity.stopAction();
     }
 
     return true;

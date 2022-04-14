@@ -1,4 +1,3 @@
-import { Hash } from 'crypto';
 import { NS } from '../../NetscriptDefinitions'
 import { IBladeburnerData } from '/data-types/bladeburner-data';
 import { ICorpData } from '/data-types/corporation-data'

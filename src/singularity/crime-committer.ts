@@ -195,7 +195,7 @@ function hasMetGoal() : boolean {
  * @param type Type of crime to optimise for.
  */
 async function doBestCrime(ns : NS, type : CrimeType) : Promise<void> {
-    while (ns.isBusy()) { await ns.asleep(1000); }
+    while (ns.singularity.isBusy()) { await ns.asleep(1000); }
 
     const bestCrime = await getBestCrime(ns, type, player.stats, ns.getPlayer().crime_success_mult, 0, 12000);
     await runDodgerScript<number>(ns, "/singularity/dodger/commitCrime.js", bestCrime.name);

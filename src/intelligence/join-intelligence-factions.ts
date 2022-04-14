@@ -28,8 +28,9 @@ export async function main(ns: NS) : Promise<void> {
 
 	while (true) {
         for (const company of companies) {
-            ns.applyToCompany(company, "software")
+            ns.singularity.applyToCompany(company, "software")
         }
+
 		await ns.asleep(refreshPeriod);
 	}
 }

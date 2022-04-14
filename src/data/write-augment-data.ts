@@ -8,7 +8,7 @@ export async function main(ns: NS) : Promise<void> {
     const allAugs : IAugmentInfo[] = [];
 
     for (const faction of ALL_FACTIONS) {
-        for (const aug of ns.getAugmentationsFromFaction(faction)) {
+        for (const aug of ns.singularity.getAugmentationsFromFaction(faction)) {
             const exitingAugEntry = allAugs.find(x => x.name === aug);
             if (exitingAugEntry) {
                 exitingAugEntry.factions.push(faction);
@@ -16,10 +16,10 @@ export async function main(ns: NS) : Promise<void> {
                 allAugs.push({
                     name: aug,
                     factions: [faction],
-                    cost: ns.getAugmentationPrice(aug),
-                    repReq: ns.getAugmentationRepReq(aug),
-                    preReq: ns.getAugmentationPrereq(aug),
-                    stats: ns.getAugmentationStats(aug)
+                    cost: ns.singularity.getAugmentationPrice(aug),
+                    repReq: ns.singularity.getAugmentationRepReq(aug),
+                    preReq: ns.singularity.getAugmentationPrereq(aug),
+                    stats: ns.singularity.getAugmentationStats(aug)
                 });
             }
         }
