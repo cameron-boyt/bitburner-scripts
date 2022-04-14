@@ -10,7 +10,7 @@ export interface IPlayerObject {
     karma : number;
     peopleKilled : number;
 
-    jobs : {[key : string] : string};
+    jobs : Record<string, string>;
 
     factions : {
         joinedFactions : string[];

@@ -55,13 +55,13 @@ let hackingServers : IServerObject[];
 
 let serversByHackRating : IServerObject[];
 let serversByStockBenefit : IServerObject[];
-const stockInfluenceMode : { [key : string] : HackInstruction } = {};
+const stockInfluenceMode : Record<string, HackInstruction> = {};
 
 // Flag to warn that we can't assign any stock mode orders this cycle
 let stockModeImpossible = false;
 
 // Map of servers if they are currently busy (do not hack)
-const targetNextAvailability : { [key : string] : number } = {};
+const targetNextAvailability : Record<string, number> = {};
 
 // Scripts and RAM costs
 const HACK_SCRIPT = "/hacking/single/hack.js";
@@ -86,18 +86,14 @@ const GRACE_PERIOD = 100;
 
 const maxHackPercentage = 0.75;
 
-const queuedWeakEvents : { [key : string] : {
+interface IHackingEvent {
     uid : number;
     assignee : string;
     power : number;
-}[]} = {};
+}
 
-
-const queuedGrowEvents : { [key : string] : {
-    uid : number;
-    assignee : string;
-    power : number;
-}[]} = {};
+const queuedWeakEvents : Record<string, IHackingEvent[]> = {};
+const queuedGrowEvents : Record<string, IHackingEvent[]> = {};
 
 const activeBatches : IBatchInfo[] = [];
 

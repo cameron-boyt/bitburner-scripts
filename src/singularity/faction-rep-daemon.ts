@@ -46,11 +46,11 @@ let preferMoney = false;
 let onlyRedPill = false;
 let onlyFaction = "";
 
-// This player and server objects 
+// This player and server objects
 let player : IPlayerObject;
 let machine : IServerObject;
 
-/* 
+/*
  * ------------------------
  * > DESIRED AUG CHECKER FUNCTIONS
  * ------------------------
@@ -66,7 +66,7 @@ function isDesiredAug(aug : IAugmentInfo) : boolean {
 		(!onlyRedPill || (onlyRedPill && aug.name === "The Red Pill"))
 		&&
 		(onlyFaction === "" || (onlyFaction !== "" && aug.factions.includes(onlyFaction as string)))
-		
+
 		&&
 
 		(
@@ -148,7 +148,7 @@ function hasMoneyStats(aug : IAugmentInfo) : boolean {
 }
 
 
-/* 
+/*
  * ------------------------
  * > REQUIREMENT PROCESSING FUNCTIONS
  * ------------------------
@@ -182,44 +182,44 @@ async function processLevelRequirements(ns : NS, levelReq : ILevelReqs, offset? 
 		const goal = levelReq.charisma + ((offset) ? offset : 0);
 		if (player.stats.charisma < goal) {
 			logger.log(`Training to ${goal} Charisma...`, { type: MessageType.debugLow });
-			await doSkillTraining(ns, Skill.Charisma, goal); 
+			await doSkillTraining(ns, Skill.Charisma, goal);
 		}
 	}
 
 	if (levelReq.defense) {
 		const goal = levelReq.defense + ((offset) ? offset : 0);
-		if (player.stats.defense < goal) { 
+		if (player.stats.defense < goal) {
 			logger.log(`Training to ${goal} Defense...`, { type: MessageType.debugLow });
-			await doSkillTraining(ns, Skill.Defense, goal); 
+			await doSkillTraining(ns, Skill.Defense, goal);
 		}
 	}
 
 	if (levelReq.dexterity) {
 		const goal = levelReq.dexterity + ((offset) ? offset : 0);
-		if (player.stats.dexterity < goal) { 
+		if (player.stats.dexterity < goal) {
 			logger.log(`Training to ${goal} Dexterity...`, { type: MessageType.debugLow });
-			await doSkillTraining(ns, Skill.Dexterity, goal); 
+			await doSkillTraining(ns, Skill.Dexterity, goal);
 		}
 	}
 
 	if (levelReq.hacking) {
 		const goal = levelReq.hacking + ((offset) ? offset : 0);
-		if (player.stats.hacking < goal) { 
+		if (player.stats.hacking < goal) {
 			logger.log(`Training to ${goal} Hacking...`, { type: MessageType.debugLow });
-			await doSkillTraining(ns, Skill.Hacking, goal); 
+			await doSkillTraining(ns, Skill.Hacking, goal);
 		}
 	}
 
 	if (levelReq.strength) {
 		const goal = levelReq.strength + ((offset) ? offset : 0);
-		if (player.stats.strength < goal) { 
+		if (player.stats.strength < goal) {
 			logger.log(`Training to ${goal} Strength...`, { type: MessageType.debugLow });
-			await doSkillTraining(ns, Skill.Strength, goal); 
+			await doSkillTraining(ns, Skill.Strength, goal);
 		}
 	}
 }
 
-/* 
+/*
  * ------------------------
  * > FACTION INVITE CHECKER FUNCTION
  * ------------------------
@@ -232,7 +232,7 @@ function checkFactionInvites(ns : NS) : void {
 	}
 }
 
-/* 
+/*
  * ------------------------
  * > FACTION JOIN REQUIREMENT CHECKER FUNCTIONS
  * ------------------------
@@ -241,7 +241,7 @@ function checkFactionInvites(ns : NS) : void {
 function canJoinFactionNow(ns : NS, faction : string) : boolean {
 	logger.log(`Testing if the player can join ${faction} immediately`, { type: MessageType.debugLow });
 	const requirements = FACTION_REQUIREMENTS[faction];
-	
+
 	const objectivesMet = [
 		!requirements.augCount || ns.getOwnedAugmentations(false).length >= requirements.augCount,
 		!requirements.backdoor || ns.getServer(requirements.backdoor).backdoorInstalled,
@@ -295,20 +295,20 @@ function processAugmentCountRequirement(ns : NS, requirements : IFactionReqs) : 
 }
 
 function processLevelRequirement(ns : NS, requirements : IFactionReqs) : boolean {
-	if (!requirements.levels) return true;	
+	if (!requirements.levels) return true;
 	logger.log(`[${requirements.faction}] Processing level requirement`, { type: MessageType.debugLow });
 
-	if (checkLevelRequirements(ns, requirements.levels)) { 
+	if (checkLevelRequirements(ns, requirements.levels)) {
 		logger.log(`[${requirements.faction}] Passed level requirement`, { type: MessageType.debugLow });
-		return true; 
+		return true;
 	} else {
 		logger.log(`[${requirements.faction}] Failed level requirement`, { type: MessageType.debugLow });
-		return false; 
+		return false;
 	}
 }
 
 async function processBackdoorRequirement(ns : NS, requirements : IFactionReqs) : Promise<boolean> {
-	if (!requirements.backdoor) return true;	
+	if (!requirements.backdoor) return true;
 	logger.log(`[${requirements.faction}] Processing server backdoor requirement`, { type: MessageType.debugLow });
 
 	const server = genServer(ns, requirements.backdoor);
@@ -323,22 +323,22 @@ async function processBackdoorRequirement(ns : NS, requirements : IFactionReqs) 
 				await ns.asleep(5000);
 			}
 		} else {
-			logger.log(`${server.hostname} Root Access: ${server.hasRootAccess} | Hacking Level: ${player.stats.hacking} / ${server.hackLevel}`, { 
-				type: MessageType.warning 
+			logger.log(`${server.hostname} Root Access: ${server.hasRootAccess} | Hacking Level: ${player.stats.hacking} / ${server.hackLevel}`, {
+				type: MessageType.warning
 			});
 			logger.log(`[${requirements.faction}] Failed backdoor requirement`, { type: MessageType.debugLow });
-			return false; 
+			return false;
 		}
 	}
 
 	logger.log(`[${requirements.faction}] Passed backdoor requirement`, { type: MessageType.debugLow });
-	return true; 
+	return true;
 }
 
-async function processKarmaRequirement(ns : NS, requirements : IFactionReqs) : Promise<boolean> { 
-	if (!requirements.karma) return true;	
+async function processKarmaRequirement(ns : NS, requirements : IFactionReqs) : Promise<boolean> {
+	if (!requirements.karma) return true;
 	logger.log(`[${requirements.faction}] Processing karma requirement`, { type: MessageType.debugLow });
-	
+
 	while (player.karma < requirements.karma) {
 		if (!ns.isRunning("/singularity/crime-committer.js", "home", "--karma", "--goal", `${requirements.karma}`)) {
 			while (machine.ram.free < ns.getScriptRam("/singularity/crime-committer.js")) { await ns.asleep(1000); }
@@ -354,7 +354,7 @@ async function processKarmaRequirement(ns : NS, requirements : IFactionReqs) : P
 }
 
 async function processPeopleKilledRequirement(ns : NS, requirements : IFactionReqs) : Promise<boolean> {
-	if (!requirements.peopleKilled) return true;	
+	if (!requirements.peopleKilled) return true;
 	logger.log(`[${requirements.faction}] Processing kill count requirement`, { type: MessageType.debugLow });
 
 	while (player.peopleKilled < requirements.peopleKilled) {
@@ -370,7 +370,7 @@ async function processPeopleKilledRequirement(ns : NS, requirements : IFactionRe
 	return true;
 }
 
-async function processCompanyReputationRequirement(ns : NS, requirements : IFactionReqs) : Promise<boolean> { 
+async function processCompanyReputationRequirement(ns : NS, requirements : IFactionReqs) : Promise<boolean> {
 	if (!requirements.companyRep) return true;
 	logger.log(`[${requirements.faction}] Processing company reputation requirement`, { type: MessageType.debugLow });
 
@@ -418,7 +418,7 @@ async function processCompanyReputationRequirement(ns : NS, requirements : IFact
 
 			// Do we meet the promotion requirements?
 			if (nextPositionInfo) {
-				
+
 				// If either there isn't a reputation requirement, or there is and we meet it...
 				if (!nextPositionInfo.repReq || (nextPositionInfo.repReq && ns.getCompanyRep(company) > nextPositionInfo.repReq)) {
 
@@ -438,12 +438,12 @@ async function processCompanyReputationRequirement(ns : NS, requirements : IFact
 						currentPosition = nextPositionInfo;
 					}
 				}
-			} 
+			}
 
 			// Work, work, work!
 			ns.workForCompany(company, true);
 			await ns.asleep(60000);
-			
+
 			// Stop for a bit to allow work gains to update
 			ns.stopAction();
 		}
@@ -454,7 +454,7 @@ async function processCompanyReputationRequirement(ns : NS, requirements : IFact
 }
 
 function processHacknetLevelsRequirement(ns : NS, requirements : IFactionReqs) : boolean {
-	if (!requirements.hacknet) return true;	
+	if (!requirements.hacknet) return true;
 	logger.log(`[${requirements.faction}] Processing hacket level requirement`, { type: MessageType.debugLow });
 
 	let hacknetLevels = 0;
@@ -528,7 +528,7 @@ async function processHighJobStatusRequirement(ns : NS, requirements : IFactionR
 
 			// Do we meet the promotion requirements?
 			if (nextPositionInfo) {
-				
+
 				// If either there isn't a reputation requirement, or there is and we meet it...
 				if (!nextPositionInfo.repReq || (nextPositionInfo.repReq && ns.getCompanyRep(company) > nextPositionInfo.repReq)) {
 
@@ -549,7 +549,7 @@ async function processHighJobStatusRequirement(ns : NS, requirements : IFactionR
 						nextPositionInfo = companyInfo.jobs.find(x => x.title === currentPosition?.nextPosition);
 					}
 				}
-			} 
+			}
 
 			// Log current reputation progress
 			logger.log(`${Math.round(ns.getCompanyRep(company))} / ${nextPositionInfo?.repReq} company reputation`, { type: MessageType.debugLow })
@@ -557,7 +557,7 @@ async function processHighJobStatusRequirement(ns : NS, requirements : IFactionR
 			// Work, work, work!
 			ns.workForCompany(company, true);
 			await ns.asleep(60000);
-			
+
 			// Stop for a bit to allow work gains to update
 			ns.stopAction();
 		}
@@ -576,8 +576,7 @@ function processLocationRequirement(ns : NS, requirements : IFactionReqs) : bool
 	if (requirements.location.includes(player.city)) {
 		logger.log(`[${requirements.faction}] Passed location requirement`, { type: MessageType.debugLow });
 		return true;
-	} else {
-		if (player.money > 200e3) {
+	} else if (player.money > 200e3) {
 			ns.travelToCity(requirements.location[0]);
 			logger.log(`[${requirements.faction}] Passed location requirement`, { type: MessageType.debugLow });
 			return true;
@@ -586,20 +585,19 @@ function processLocationRequirement(ns : NS, requirements : IFactionReqs) : bool
 			logger.log(`[${requirements.faction}] Failed location requirement`, { type: MessageType.debugLow });
 			return false;
 		}
-	}
 }
 
 function processMoneyRequirement(ns : NS, requirements : IFactionReqs) : boolean {
 	if (!requirements.money) return true;
 	logger.log(`[${requirements.faction}] Processing money requirement`, { type: MessageType.debugLow });
 
-	if (player.money >= requirements.money) { 
+	if (player.money >= requirements.money) {
 		logger.log(`[${requirements.faction}] Passed money requirement`, { type: MessageType.debugLow });
-		return true; 
+		return true;
 	} else {
 		logger.log(`Insufficient funds for faction invitation - require ${ns.nFormat(requirements.money, '$0.00a')}`, { type: MessageType.warning });
 		logger.log(`[${requirements.faction}] Failed money requirement`, { type: MessageType.debugLow });
-		return false; 
+		return false;
 	}
 }
 
@@ -630,17 +628,17 @@ async function tryJoinFaction(ns : NS, logger : ScriptLogger, faction : string) 
 			for (const faction of ns.checkFactionInvitations()) {
 				if (faction === requirements.faction) ns.joinFaction(faction);
 			}
-			
+
 			await ns.asleep(1000);
 		}
-	
+
 		logger.log("Invitation accepted", { type: MessageType.success });
-	
+
 		return true;
 	} else {
 		logger.log(`Failed to meet requirements to join ${faction}`, { type: MessageType.debugLow });
 		return false
-	}	
+	}
 }
 
 function isInFaction(faction : string) : boolean {
@@ -672,7 +670,7 @@ async function getDesireableAugmentations(ns : NS) : Promise<IAugmentInfo[]> {
 		));
 	});
 
-	const facAugCount : { [key : string] : number } = {};
+	const facAugCount : Record<string, number> = {};
 	for (const aug of allAugs) {
 		if (facAugCount[aug.factions[0]]) {
 			facAugCount[aug.factions[0]] += 1
@@ -706,9 +704,9 @@ async function getDesireableAugmentations(ns : NS) : Promise<IAugmentInfo[]> {
 		let repForNextFavourThreshold = Infinity;
 		let favourAug : IAugmentInfo | undefined;
 
-		for (const favourThreshold of [30, 75, 150]) { 
+		for (const favourThreshold of [30, 75, 150]) {
 
-			// If we have less than x favour... 
+			// If we have less than x favour...
 			if (ns.getFactionFavor(faction) < favourThreshold) {
 				const totalRepRequired = 25000 * (Math.pow(1.02, favourThreshold) - 1);
 				const totalRepFromFavour = 25000 * (Math.pow(1.02, ns.getFactionFavor(faction)) - 1);
@@ -733,16 +731,16 @@ async function getDesireableAugmentations(ns : NS) : Promise<IAugmentInfo[]> {
 		if (desirableAugsFromFaction.length > 0) {
 
 			// Push all desirable augs from this faction
-			desiredAugs.push(...desirableAugsFromFaction.filter((aug) => 
+			desiredAugs.push(...desirableAugsFromFaction.filter((aug) =>
 				desiredAugs.findIndex(x => x.name === aug.name) < 0 &&
 				aug.repReq <= repForNextFavourThreshold)
 			);
-	
+
 			// Push the favour threshold aug - if there is one
 			if (favourAug) favourAugs.push(favourAug);
 		}
 	}
-	
+
 	// Sort by reputation left to gain in ascending order, then append the favour threshold augs in order of difficulty to join the faction
 	const augmentations = [
 		...desiredAugs.sort((a, b) => {
@@ -781,7 +779,7 @@ async function tryJoinNextAugFaction(ns : NS, aug : IAugmentInfo) : Promise<stri
 	return;
 }
 
-/* 
+/*
  * ------------------------
  * > FACTION REPUTATION GAIN FUNCTIONS
  * ------------------------
@@ -793,7 +791,7 @@ function doDonation(ns : NS, faction : string, aug : IAugmentInfo) : boolean {
 	const goalRep = Math.floor(aug.repReq);
 	const repToGain = goalRep - currRep;
 	const donationAmount = Math.ceil((repToGain / player.factions.factionRepMult) * DONATE_REP_DIVISOR);
-	
+
 	if (canDonateToFaction(ns, faction, donationAmount)) {
 		ns.donateToFaction(faction, donationAmount);
 		logger.log(`Donated ${ns.nFormat(donationAmount, '$0.000a')} to ${faction} for ${Math.floor(repToGain)} reputation`, { type: MessageType.info });
@@ -818,7 +816,7 @@ async function doFactionWork(ns : NS, faction : string, aug : IAugmentInfo) : Pr
 		working = ns.workForFaction(faction, task);
 		if (working) break;
 	}
-	
+
 	if (!working) logger.log("Failed to find work", { type: MessageType.error });
 
 	ns.setFocus(!noFocus);
@@ -839,7 +837,7 @@ function hasMetReputationRequirement(ns : NS, faction : string, aug : IAugmentIn
 }
 
 
-/** @param {NS} ns 'ns' namespace parameter. */ 
+/** @param {NS} ns 'ns' namespace parameter. */
 export async function main(ns: NS) : Promise<void> {
 	ns.disableLog("ALL");
 	logger = new ScriptLogger(ns, "FACTION-DAE", "Faction Daemon")
@@ -901,8 +899,8 @@ export async function main(ns: NS) : Promise<void> {
 	if (preferHacknet) 		logger.log("Working towards augmentations that boost Hacknet multipliers.", { type: MessageType.info });
 	if (preferBladeburner) 	logger.log("Working towards augmentations that boost Bladeburner multipliers.", { type: MessageType.info });
 	if (preferMoney) 		logger.log("Working towards augmentations that boost Money multipliers.", { type: MessageType.info });
-	
-    // Define player and current server    
+
+    // Define player and current server
     player = genPlayer(ns);
     machine = genServer(ns, ns.getHostname());
 
@@ -933,7 +931,7 @@ export async function main(ns: NS) : Promise<void> {
 			}
 
 			while (!hasMetReputationRequirement(ns, faction, aug)) {
-				const donated = doDonation(ns, faction, aug);				
+				const donated = doDonation(ns, faction, aug);
 				if (!donated) await doFactionWork(ns, faction, aug);
 				checkFactionInvites(ns);
 			}

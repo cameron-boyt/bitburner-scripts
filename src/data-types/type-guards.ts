@@ -31,16 +31,6 @@ export function isPlayerSkills(u : unknown) : u is PlayerSkills {
     return (u as PlayerSkills).intelligence !== undefined;
 }
 
-/**
- * Guard to ensure type: AugmentationStats
- * @param u Object to test.
- * @returns True if the object is of type AugmentationStats.
- */
-export function isTypeAugmentationStats(u : unknown) : u is AugmentationStats {
-	return (u as AugmentationStats).bladeburner_success_chance_mult !== undefined;
-}
-
-
 
 
 export function isTypeHackCycle(u : unknown) : u is IHackCycle {

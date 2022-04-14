@@ -1,5 +1,5 @@
 import { NS } from '@ns';
-import { ICorpData, ICorpUnlock, ICorpUpgrade, IDivisionLimits, IndustryType, IProduct, IStorage, JobType } from '/data-types/corporation-data.js';
+import { ICorpData, ICorpUnlock, ICorpUpgrade, IDivisionLimits, IndustryType, IProduct, JobType } from '/data-types/corporation-data.js';
 import { runDodgerScript } from '/helpers/dodger-helper';
 import { CITIES, INDUSTRIES, PRODUCT_INDUSTRIES } from '/libraries/constants.js';
 import { genPlayer, IPlayerObject } from '/libraries/player-factory.js';
@@ -33,6 +33,7 @@ let player : IPlayerObject;
 //let machine : IServerObject;
 
 // Coporation research upgrades
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const researchUpgrades = [
     "Hi-Tech R&D Laboratory",
     "Market-TA.I",
@@ -151,7 +152,7 @@ function processCheckForCorporationAPIs(ns : NS) : void {
 async function updateCorpData(ns : NS) : Promise<void> {
     corpData.funds = ns.corporation.getCorporation().funds;
 
-    const successTicks : { [key : string] : number } = {};
+    const successTicks : Record<string, number> = {};
     CITIES.forEach(c => successTicks[c] = 0);
 
     for (const division of ns.corporation.getCorporation().divisions) {
@@ -189,7 +190,7 @@ async function updateCorpData(ns : NS) : Promise<void> {
             for (const product of division.products) {
                 const productInfo = ns.corporation.getProduct(division.name, product);
 
-                const successTicks : { [key : string] : number } = {};
+                const successTicks : Record<string, number> = {};
                 CITIES.forEach(c => successTicks[c] = 0);
 
                 products.push({
@@ -1591,13 +1592,13 @@ async function doMaterialPurchasesForDivisionInCity(ns : NS, division : string, 
  * @param city Name of city.
  * @param storage Storage object.
  */
-async function sellExcessMaterials(ns : NS, division : string, city : string, storage : IStorage) : Promise<void> {
-    const toSell : { material : string, amount: number }[] = [];
+async function sellExcessMaterials(ns : NS, division : string, city : string, storage : Record<string, number>) : Promise<void> {
+    const toSell : { material : string; amount: number }[] = [];
 
     for (const material of ["Hardware", "Robots", "AICores", "RealEstate"]) {
         ns.corporation.buyMaterial(division, city, material, 0);
         ns.corporation.sellMaterial(division, city, material, "0", "0");
-        let quantity = ns.corporation.getMaterial(division, city, material).qty;
+        const quantity = ns.corporation.getMaterial(division, city, material).qty;
 
         if (quantity > storage[material]) {
             const amtToSell = quantity - storage[material];
@@ -1615,13 +1616,13 @@ async function sellExcessMaterials(ns : NS, division : string, city : string, st
  * @param city Name of city.
  * @param storage Storage object.
  */
-async function buyRequiredMaterials(ns : NS, division : string, city : string, storage : IStorage) : Promise<void> {
-    const toBuy : { material : string, amount: number }[] = [];
+async function buyRequiredMaterials(ns : NS, division : string, city : string, storage : Record<string, number>) : Promise<void> {
+    const toBuy : { material : string; amount: number }[] = [];
 
     for (const material of ["Hardware", "Robots", "AICores", "RealEstate"]) {
         ns.corporation.buyMaterial(division, city, material, 0);
         ns.corporation.sellMaterial(division, city, material, "0", "0");
-        let quantity = ns.corporation.getMaterial(division, city, material).qty;
+        const quantity = ns.corporation.getMaterial(division, city, material).qty;
 
         if (quantity < storage[material] && ns.corporation.getCorporation().funds >= 5e9) {
             const amtToBuy = storage[material] - quantity;
@@ -1640,7 +1641,7 @@ async function buyRequiredMaterials(ns : NS, division : string, city : string, s
  * @param material Material to sell.
  * @param amount Amount to sell.
  */
-async function doSellMaterials(ns : NS, division : string, city : string, toSell : { material : string, amount: number }[]) : Promise<void> {
+async function doSellMaterials(ns : NS, division : string, city : string, toSell : { material : string; amount: number }[]) : Promise<void> {
     // Wait for next pre-"SALE" state
     while (ns.corporation.getCorporation().state !== "PRODUCTION") { await ns.asleep(10); }
 
@@ -1667,7 +1668,7 @@ async function doSellMaterials(ns : NS, division : string, city : string, toSell
  * @param material Material to buy.
  * @param amount Amount to buy.
  */
-async function doBuyMaterials(ns : NS, division : string, city : string, toBuy : { material : string, amount: number }[]) : Promise<void> {
+async function doBuyMaterials(ns : NS, division : string, city : string, toBuy : { material : string; amount: number }[]) : Promise<void> {
     // Wait for the next pre-"PURCHASE" state
     while (ns.corporation.getCorporation().state !== "START") { await ns.asleep(10); }
 
@@ -1924,8 +1925,8 @@ function setProductPricesWithPriceEstimation(ns : NS, division : string, product
  * @param size Size of warehouse.
  * @returns Optimal storage amounts.
  */
-function optimalMaterialStorage(divisionType : string, size : number) : IStorage {
-    const matProdFactors : { [key : string] : IStorage } = {
+function optimalMaterialStorage(divisionType : string, size : number) : Record<string, number> {
+    const matProdFactors : Record<string, Record<string, number>> = {
         "Energy":           {"Hardware": 0.,    "RealEstate": 0.65, "Robots": 0.05, "AICores": 0.3},
         "Utilities":        {"Hardware": 0.,    "RealEstate": 0.5,  "Robots": 0.4,  "AICores": 0.4},
         "Agriculture":      {"Hardware": 0.2,   "RealEstate": 0.72, "Robots": 0.3,  "AICores": 0.3},
@@ -1941,13 +1942,13 @@ function optimalMaterialStorage(divisionType : string, size : number) : IStorage
         "Healthcare":       {"Hardware": 0.1,   "RealEstate": 0.1,  "Robots": 0.1,  "AICores": 0.1},
         "Real Estate":      {"Hardware": 0.05,  "RealEstate": 0.,   "Robots": 0.6,  "AICores": 0.6},
     };
-    const matSizes : IStorage = { "Hardware": 0.06, "RealEstate": 0.005, "Robots": 0.5, "AICores": 0.1 };
+    const matSizes : Record<string, number> = { "Hardware": 0.06, "RealEstate": 0.005, "Robots": 0.5, "AICores": 0.1 };
 
     const beta = 0.002;         // constant multiplier used in production factor calculation
     const epsilon = 1e-12;
     const alpha = matProdFactors[divisionType];
 
-    const storage : IStorage = { "Hardware": -1., "RealEstate": -1., "Robots": -1., "AICores": -1. };
+    const storage : Record<string, number> = { "Hardware": -1., "RealEstate": -1., "Robots": -1., "AICores": -1. };
 
     const removedMats : string[] = [];       // if the optimal solution requires negative material storage, resolve without that material
     while (true) {
@@ -1992,7 +1993,7 @@ function optimalMaterialStorage(divisionType : string, size : number) : IStorage
 
 
 async function bribeFactions(ns : NS) : Promise<void> {
-    const factionRep = await runDodgerScript<{ faction : string, rep : number }[]>(ns, "/singularity/dodger/getFactionRep-bulk.js", JSON.stringify(player.factions.joinedFactions));
+    const factionRep = await runDodgerScript<{ faction : string; rep : number }[]>(ns, "/singularity/dodger/getFactionRep-bulk.js", JSON.stringify(player.factions.joinedFactions));
     const rep = ns.singularity.getAugmentationRepReq("The Red Pill");
     const gangFaction = ns.gang.inGang() ? ns.gang.getGangInformation().faction : "";
     for (const f of factionRep) {

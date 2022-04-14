@@ -52,7 +52,7 @@ export interface IFactionReqs {
     difficulty: number;
 }
 
-export const FACTION_REQUIREMENTS : { [key : string] : IFactionReqs } = {
+export const FACTION_REQUIREMENTS : Record<string, IFactionReqs> = {
     "CyberSec": {
         faction: 'CyberSec',
         backdoor: 'CSEC',

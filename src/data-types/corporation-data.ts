@@ -39,16 +39,10 @@ export interface IDivisionLimits {
     };
 }
 
-export interface IStorage {
-    [key : string] : number;
-}
-
 export interface IProduct {
     name : string;
     developmentProgress : number;
-    successiveSellPriceIncreaseTicks : {
-        [key : string] : number;
-    };
+    successiveSellPriceIncreaseTicks : Record<string, number>;
 }
 
 export interface IDivision {

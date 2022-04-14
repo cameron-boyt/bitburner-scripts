@@ -1,10 +1,11 @@
 import { NS } from '@ns'
+import { IFactionReptuation } from '/data-types/faction-data';
 import { IGangData } from '/data-types/gang-data';
 import { readAugmentData } from '/data/read-augment-data';
 import { runDodgerScript } from '/helpers/dodger-helper';
-import { ALL_FACTIONS, AUG_PRICE_FACTOR, IAugmentInfo } from '/libraries/constants.js';
+import { AUG_PRICE_FACTOR, IAugmentInfo } from '/libraries/constants.js';
 import { IPlayerObject, genPlayer } from '/libraries/player-factory';
-import { peekPort, PortNumber, purgePort, writeToPort } from '/libraries/port-handler.js';
+import { peekPort, PortNumber } from '/libraries/port-handler.js';
 import { ScriptLogger } from '/libraries/script-logger.js';
 
 // Script logger
@@ -42,7 +43,7 @@ let player : IPlayerObject;
 let augmentations : IAugmentInfo[] = [];
 
 /** Faction rep per faction joined by player */
-let factionRep : { faction : string, rep : number }[] = [];
+let factionRep : { faction : string; rep : number }[] = [];
 
 
 
@@ -82,7 +83,7 @@ async function setupEnvironment(ns : NS) : Promise<void> {
 async function updateAugmentBasket(ns : NS) : Promise<IAugmentPurchase[]> {
 	let allAugs : IAugmentPurchase[] = [];
     augmentations = await readAugmentData(ns);
-    factionRep = await runDodgerScript<{ faction : string, rep : number }[]>(ns, "/singularity/dodger/getFactionRep-bulk.js", JSON.stringify(player.factions.joinedFactions));
+    factionRep = await runDodgerScript<IFactionReptuation[]>(ns, "/singularity/dodger/getFactionRep-bulk.js", JSON.stringify(player.factions.joinedFactions));
 	const ownedAugs = await runDodgerScript<string[]>(ns, "/singularity/dodger/getOwnedAugmentations.js")
 
     const stockWorth = peekPort<number>(ns, PortNumber.StockWorth);
@@ -239,7 +240,7 @@ export async function main(ns: NS) : Promise<void> {
 
     while (true) {
 
-        let augShoppingBasket = await updateAugmentBasket(ns);
+        const augShoppingBasket = await updateAugmentBasket(ns);
 
         if (augShoppingBasket.length > 0) {
             let totalCost = 0;

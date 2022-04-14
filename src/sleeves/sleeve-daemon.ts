@@ -13,8 +13,7 @@ import { calculateCrimeChance, getBestCrime, getCrimeData } from '/helpers/crime
 import { IAugmentInfo } from '/libraries/constants';
 import { getPlayerSensibleSkillApproximation, getSleeveSensibleSkillApproximation } from '/helpers/skill-helper';
 import { getBestWorkType } from '/helpers/faction-helper';
-import { getFactionWorkTypeFromEnum, getFactionWorkTypeFromString } from '/data-types/faction-data';
-import { isTypeAugmentationStats } from '/data-types/type-guards';
+import { getFactionWorkTypeFromEnum, getFactionWorkTypeFromString, IFactionReptuation } from '/data-types/faction-data';
 import { IScriptRun } from '/data-types/dodger-data';
 
 // Script logger
@@ -75,7 +74,7 @@ let augmentations : IAugmentInfo[] = [];
 let playerAugments : string[] = [];
 
 /** Faction rep per faction joined by player */
-let factionRep : { faction : string, rep : number }[] = [];
+let factionRep : IFactionReptuation[] = [];
 
 /** Sleeve data tracking object */
 let sleeveData : ISleeveData;
@@ -237,7 +236,7 @@ async function getBulkData(ns : NS) : Promise<void> {
 	sleeveStats = results[1] as SleeveSkills[];
 	sleeveTask = results[2] as SleeveTask[];
 	sleeveAugments = results[3] as AugmentPair[][];
-	factionRep = results[4] as { faction : string, rep : number }[];
+	factionRep = results[4] as IFactionReptuation[];
 	playerAugments = results[5] as string[];
 }
 
@@ -524,7 +523,7 @@ function generatePurchaseAugmentScripts() : IScriptRun[] {
 	sleeveData.sleeves.filter((sleeve) => canPurchaseAugmentsForSleeve(sleeve)).forEach((sleeve) => {
 		const augmentData = sleeveAugments[sleeve.number].filter((augment) => {
 			const data = augmentations.find(x => x.name === augment.name);
-			return isTypeAugmentationStats(data) && isDesireableAug(data.stats);
+			return (data !== undefined) && isDesireableAug(data.stats);
 		}).sort((a, b) => a.cost - b.cost);
 
 		for (const augment of augmentData) {
