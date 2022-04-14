@@ -305,8 +305,8 @@ function setStageTwoLimits() : void {
     ];
 
     divisionLimits = {};
-    divisionLimits[IndustryType.Material] = { warehouseLimit: 2000, officeLimit: 9, adVertLimit: 1 };
-    divisionLimits[IndustryType.Product] = { warehouseLimit: 2000, officeLimit: 9, adVertLimit: 1 };
+    divisionLimits[IndustryType.Material] = { warehouseLimit: 1000, officeLimit: 9, adVertLimit: 1 };
+    divisionLimits[IndustryType.Product] = { warehouseLimit: 1000, officeLimit: 9, adVertLimit: 1 };
 }
 
 /**
@@ -327,8 +327,8 @@ function setStageThreeLimits() : void {
     ];
 
     divisionLimits = {};
-    divisionLimits[IndustryType.Material] = { warehouseLimit: 2000, officeLimit: 9, adVertLimit: 10 };
-    divisionLimits[IndustryType.Product] = { warehouseLimit: 5000, officeLimit: 90,  adVertLimit: Infinity };
+    divisionLimits[IndustryType.Material] = { warehouseLimit: 1500, officeLimit: 9, adVertLimit: 10 };
+    divisionLimits[IndustryType.Product] = { warehouseLimit: 2500, officeLimit: 90,  adVertLimit: Infinity };
 }
 
 /**
@@ -349,8 +349,8 @@ function setStageFourLimits() : void {
     ];
 
     divisionLimits = {};
-    divisionLimits[IndustryType.Material] = { warehouseLimit: 5000, officeLimit: 18, adVertLimit: 10 };
-    divisionLimits[IndustryType.Product] = { warehouseLimit: 10000, officeLimit: 240,  adVertLimit: Infinity };
+    divisionLimits[IndustryType.Material] = { warehouseLimit: 2500, officeLimit: 18, adVertLimit: 10 };
+    divisionLimits[IndustryType.Product] = { warehouseLimit: 4000, officeLimit: 240,  adVertLimit: Infinity };
 }
 
 /**
@@ -371,8 +371,8 @@ function setStageFiveLimits(ns : NS) : void {
     ];
 
     divisionLimits = {};
-    divisionLimits[IndustryType.Material] = { warehouseLimit: 10000, officeLimit: 18, adVertLimit: 10 };
-    divisionLimits[IndustryType.Product] = { warehouseLimit: 10000, officeLimit: 300,  adVertLimit: Infinity };
+    divisionLimits[IndustryType.Material] = { warehouseLimit: 5000, officeLimit: 18, adVertLimit: 10 };
+    divisionLimits[IndustryType.Product] = { warehouseLimit: 5000, officeLimit: 300,  adVertLimit: Infinity };
 
     if (!ns.corporation.getCorporation().public) {
         ns.corporation.goPublic(0)
@@ -866,9 +866,10 @@ function canUpgradeWarehouseSize(ns : NS, division : string, city : string) : bo
  */
 function atWarehouseSizeLimit(ns : NS, division : string, city : string) : boolean {
     const warehouse = ns.corporation.getWarehouse(division, city);
+    const sizeMultiplier = 1 + (ns.corporation.getUpgradeLevel("Smart Storage") * 0.1);
     const industry = getIndustryFromDivisionName(ns, division);
     const limit = getWarehouseLimit(industry);
-    return warehouse.size >= limit;
+    return (warehouse.size / sizeMultiplier) >= limit;
 }
 
 /**
@@ -877,7 +878,7 @@ function atWarehouseSizeLimit(ns : NS, division : string, city : string) : boole
  * @returns True if the upgrade is affordable; false otherwise.
  */
 function canAffordWarehouseSizeUpgrade(ns : NS, division : string, city : string) : boolean {
-    return ns.corporation.getCorporation().funds >= ns.corporation.getUpgradeWarehouseCost(division, city) * 10;
+    return ns.corporation.getCorporation().funds >= ns.corporation.getUpgradeWarehouseCost(division, city);
 }
 
 /*
@@ -1591,17 +1592,20 @@ async function doMaterialPurchasesForDivisionInCity(ns : NS, division : string, 
  * @param storage Storage object.
  */
 async function sellExcessMaterials(ns : NS, division : string, city : string, storage : IStorage) : Promise<void> {
+    const toSell : { material : string, amount: number }[] = [];
+
     for (const material of ["Hardware", "Robots", "AICores", "RealEstate"]) {
         ns.corporation.buyMaterial(division, city, material, 0);
         ns.corporation.sellMaterial(division, city, material, "0", "0");
         let quantity = ns.corporation.getMaterial(division, city, material).qty;
 
-        while (quantity > storage[material]) {
+        if (quantity > storage[material]) {
             const amtToSell = quantity - storage[material];
-            await doSellMaterials(ns, division, city, material, amtToSell);
-            quantity = ns.corporation.getMaterial(division, city, material).qty;
+            toSell.push({ material: material, amount: amtToSell });
         }
     }
+
+    await doSellMaterials(ns, division, city, toSell);
 }
 
 /**
@@ -1612,17 +1616,20 @@ async function sellExcessMaterials(ns : NS, division : string, city : string, st
  * @param storage Storage object.
  */
 async function buyRequiredMaterials(ns : NS, division : string, city : string, storage : IStorage) : Promise<void> {
+    const toBuy : { material : string, amount: number }[] = [];
+
     for (const material of ["Hardware", "Robots", "AICores", "RealEstate"]) {
         ns.corporation.buyMaterial(division, city, material, 0);
         ns.corporation.sellMaterial(division, city, material, "0", "0");
         let quantity = ns.corporation.getMaterial(division, city, material).qty;
 
-        while (quantity < storage[material] && ns.corporation.getCorporation().funds >= 5e9) {
+        if (quantity < storage[material] && ns.corporation.getCorporation().funds >= 5e9) {
             const amtToBuy = storage[material] - quantity;
-            await doBuyMaterials(ns, division, city, material, amtToBuy);
-            quantity = ns.corporation.getMaterial(division, city, material).qty;
+            toBuy.push({ material: material, amount: amtToBuy });
         }
     }
+
+    await doBuyMaterials(ns, division, city, toBuy);
 }
 
 /**
@@ -1633,19 +1640,23 @@ async function buyRequiredMaterials(ns : NS, division : string, city : string, s
  * @param material Material to sell.
  * @param amount Amount to sell.
  */
-async function doSellMaterials(ns : NS, division : string, city : string, material : string, amount : number) : Promise<void> {
+async function doSellMaterials(ns : NS, division : string, city : string, toSell : { material : string, amount: number }[]) : Promise<void> {
     // Wait for next pre-"SALE" state
     while (ns.corporation.getCorporation().state !== "PRODUCTION") { await ns.asleep(10); }
 
     // Sell the required number of materials
-    ns.corporation.sellMaterial(division, city, material, (amount / 10).toString(), "0");
-    logger.log(`Selling ${amount.toFixed(0)} x ${material} in ${division} > ${city}`, { type: MessageType.info });
+    for (const item of toSell) {
+        ns.corporation.sellMaterial(division, city, item.material, (item.amount / 10).toString(), "0");
+        logger.log(`Selling ${item.amount.toFixed(0)} x ${item.material} in ${division} > ${city}`, { type: MessageType.info });
+    }
 
     // Wait for the next post-"SALE" state
     while (ns.corporation.getCorporation().state !== "EXPORT") { await ns.asleep(10); }
 
     // Unset materials to sell
-    ns.corporation.sellMaterial(division, city, material, "0", "0");
+    for (const item of toSell) {
+        ns.corporation.sellMaterial(division, city, item.material, "0", "0");
+    }
 }
 
 /**
@@ -1656,19 +1667,23 @@ async function doSellMaterials(ns : NS, division : string, city : string, materi
  * @param material Material to buy.
  * @param amount Amount to buy.
  */
-async function doBuyMaterials(ns : NS, division : string, city : string, material : string, amount : number) : Promise<void> {
+async function doBuyMaterials(ns : NS, division : string, city : string, toBuy : { material : string, amount: number }[]) : Promise<void> {
     // Wait for the next pre-"PURCHASE" state
     while (ns.corporation.getCorporation().state !== "START") { await ns.asleep(10); }
 
     // Buy the required number of materials
-    ns.corporation.buyMaterial(division, city, material, (amount / 10));
-    logger.log(`Buying ${amount.toFixed(0)} x ${material} in ${division} > ${city}`, { type: MessageType.info });
+    for (const item of toBuy) {
+        ns.corporation.buyMaterial(division, city, item.material, (item.amount / 10));
+        logger.log(`Buying ${item.amount.toFixed(0)} x ${item.material} in ${division} > ${city}`, { type: MessageType.info });
+    }
 
     // Wait for the next post-"PURCHASE" state
     while (ns.corporation.getCorporation().state !== "PRODUCTION") { await ns.asleep(10); }
 
     // Unset materials to buy
-    ns.corporation.buyMaterial(division, city, material, 0);
+    for (const item of toBuy) {
+        ns.corporation.buyMaterial(division, city, item.material, 0);
+    }
 }
 
 /*
@@ -1978,7 +1993,7 @@ function optimalMaterialStorage(divisionType : string, size : number) : IStorage
 
 async function bribeFactions(ns : NS) : Promise<void> {
     const factionRep = await runDodgerScript<{ faction : string, rep : number }[]>(ns, "/singularity/dodger/getFactionRep-bulk.js", JSON.stringify(player.factions.joinedFactions));
-    const rep = ns.getAugmentationRepReq("The Red Pill");
+    const rep = ns.singularity.getAugmentationRepReq("The Red Pill");
     const gangFaction = ns.gang.inGang() ? ns.gang.getGangInformation().faction : "";
     for (const f of factionRep) {
         if (["Bladeburners", "Church of the Machine God", gangFaction].includes(f.faction)) continue;

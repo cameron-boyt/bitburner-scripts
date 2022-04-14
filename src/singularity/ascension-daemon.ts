@@ -183,7 +183,7 @@ async function purchaseAugsAndReset(ns : NS, basket : IAugmentPurchase[]) : Prom
     ns.tprint("AWAY WE GOOOOOOOOOOOooooooooooooooooooo...........");
     ns.tprint(basket);
 
-    for (const aug of basket) { ns.purchaseAugmentation(aug.faction, aug.augment); }
+    for (const aug of basket) { ns.singularity.purchaseAugmentation(aug.faction, aug.augment); }
 
     ns.ps().filter((proc) => proc.filename !== ns.getRunningScript()?.filename).forEach((proc) => ns.kill(proc.pid));
     await ns.asleep(5000);
