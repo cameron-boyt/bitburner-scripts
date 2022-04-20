@@ -1,4 +1,4 @@
-import { Skill } from "./skill-data";
+import { Skill } from "../data-types/skill-data";
 import { SleeveInformation, SleeveSkills } from '/../NetscriptDefinitions';
 import { IScriptRun } from '/data-types/dodger-data';
 import { FactionWorkType } from '/data-types/faction-data';
