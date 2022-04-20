@@ -1,6 +1,6 @@
-import { NS } from '@ns'
-import { IScriptRun, IScriptRunRequest } from '/data-types/dodger-data';
-import { getFreeRam } from '/helpers/server-helper';
+import { NS } from "@ns";
+import { IScriptRun, IScriptRunRequest } from "/data-types/dodger-data";
+import { getFreeRam } from "/helpers/server-helper";
 
 /**
  * [RAM DODGER]
@@ -11,15 +11,16 @@ import { getFreeRam } from '/helpers/server-helper';
  * @param args Args to run with the script.
  * @returns Return value of the command embedded in the provided script.
  */
-export async function runDodgerScript<T>(ns : NS, script : string, ...args : (string | boolean | number)[]) : Promise<T> {
+export async function runDodgerScript<T>(ns: NS, script: string, ...args: unknown[]): Promise<T> {
     const uid = generateUID(script);
-    //ns.print(`Creating ${uid}`);
 
     while (getFreeRam(ns, "home") < ns.getScriptRam(script)) {
         await ns.asleep(5);
     }
 
-    const result = ns.run(script, 1, uid, ...args);
+    const stringArgs: string[] = args.map((arg) => (typeof arg === "string" ? arg : JSON.stringify(arg)));
+
+    const result = ns.run(script, 1, uid, ...stringArgs);
     if (result <= 0) {
         ns.print("FAIL | Failed catestrophically");
         ns.tail();
@@ -35,7 +36,7 @@ export async function runDodgerScript<T>(ns : NS, script : string, ...args : (st
     }
 
     const data = ns.read(filename);
-    ns.rm(filename)
+    ns.rm(filename);
 
     return JSON.parse(data) as T;
 }
@@ -44,12 +45,10 @@ export async function runDodgerScript<T>(ns : NS, script : string, ...args : (st
  * Generate a new UID for a script run.
  * @returns A unique identifier for this script run.
  */
-function generateUID(script : string) : string {
-    const scriptStr = (script.split('/').pop() as string).slice(0, -3);
+function generateUID(script: string): string {
+    const scriptStr = (script.split("/").pop() as string).slice(0, -3);
     const timeStr = Math.floor(performance.now()).toString();
-    const uid = `${scriptStr}-${timeStr}`;
-
-	return uid;
+    return `${scriptStr}-${timeStr}`;
 }
 
 /**
@@ -60,7 +59,7 @@ function generateUID(script : string) : string {
  * @param scripts Array of script run objects.
  * @returns Output of the executed scripts.
  */
-export async function runDodgerScriptBulk(ns : NS, scripts : IScriptRun[]) : Promise<unknown[]> {
+export async function runDodgerScriptBulk(ns: NS, scripts: IScriptRun[]): Promise<unknown[]> {
     for (const script of scripts) {
         if (!ns.fileExists(script.script)) {
             throw new Error(`Unable to find script: ${script.script}`);
@@ -74,8 +73,8 @@ export async function runDodgerScriptBulk(ns : NS, scripts : IScriptRun[]) : Pro
             await ns.asleep(5);
         }
 
-        //ns.print(`Creating ${s.uid}`);
-        const result = ns.run(s.script, 1, s.uid, ...s.args);
+        const stringArgs: string[] = s.args.map((arg) => (typeof arg === "string" ? arg : JSON.stringify(arg)));
+        const result = ns.run(s.script, 1, s.uid, ...stringArgs);
         if (result <= 0) {
             ns.print("FAIL | Failed catestrophically");
             ns.tail();
@@ -85,7 +84,7 @@ export async function runDodgerScriptBulk(ns : NS, scripts : IScriptRun[]) : Pro
         }
     }
 
-    const results : unknown[] = [];
+    const results: unknown[] = [];
 
     for (const run of runs) {
         const filename = `/tmp/${run.uid}.txt`;
@@ -105,20 +104,21 @@ export async function runDodgerScriptBulk(ns : NS, scripts : IScriptRun[]) : Pro
  * @param scripts Script runs array.
  * @returns Array of script run request objects, including script UIDs.
  */
-function generateBulkUIDs(scripts : IScriptRun[]) : IScriptRunRequest[] {
+function generateBulkUIDs(scripts: IScriptRun[]): IScriptRunRequest[] {
     const timeStr = Math.floor(performance.now()).toString();
     let scriptCount = 1;
 
-    const uids : IScriptRunRequest[] = scripts.map((s) => {
-        const scriptStr = (s.script.split('/').pop() as string).slice(0, -3);
-        const uid = `${scriptStr}-${timeStr}-${(`000${scriptCount++}`).slice(-4)}`;
+    const uids: IScriptRunRequest[] = scripts.map((s) => {
+        const scriptStr = (s.script.split("/").pop() as string).slice(0, -3);
+        const scriptNumber = "000" + scriptCount++;
+        const uid = `${scriptStr}-${timeStr}-${scriptNumber.slice(-4)}`;
 
         return {
             uid: uid,
             script: s.script,
-            args: s.args
+            args: s.args,
         };
     });
 
-	return uids;
+    return uids;
 }
