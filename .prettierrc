@@ -1,8 +1,10 @@
 {
-    "trailingComma": "all",
+    "trailingComma": "es5",
     "endOfLine": "lf",
     "tabWidth": 4,
     "printWidth": 180,
     "arrowParens": "always",
-    "bracketSpacing": true
+    "bracketSpacing": true,
+    "semi": true,
+    "quoteProps": "consistent"
   }
