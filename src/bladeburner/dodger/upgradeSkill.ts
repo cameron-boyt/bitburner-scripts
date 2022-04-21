@@ -1,7 +1,7 @@
 import { NS } from "@ns";
 
 export async function main(ns: NS): Promise<void> {
-    const uid = ns.args[0] as number;
+    const uid = ns.args[0] as string;
     const skillName = ns.args[1] as string;
 
     const result = ns.bladeburner.upgradeSkill(skillName);

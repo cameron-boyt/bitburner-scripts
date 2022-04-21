@@ -2,7 +2,7 @@ import { NS } from "@ns";
 import { IBladeburnerAction } from "/bladeburner/bladeburner-data";
 
 export async function main(ns: NS): Promise<void> {
-    const uid = ns.args[0] as number;
+    const uid = ns.args[0] as string;
     const actions: IBladeburnerAction[] = JSON.parse(ns.args[1] as string);
     const highestLevel: number = JSON.parse(ns.args[2] as string);
 

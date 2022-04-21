@@ -1,7 +1,7 @@
 import { NS } from "@ns";
 
 export async function main(ns: NS): Promise<void> {
-    const uid = ns.args[0] as number;
+    const uid = ns.args[0] as string;
     const actionType = ns.args[1] as string;
     const actionName = ns.args[2] as string;
 
