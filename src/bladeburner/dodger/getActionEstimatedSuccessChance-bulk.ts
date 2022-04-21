@@ -1,5 +1,5 @@
 import { NS } from "@ns";
-import { IBladeburnerAction } from "/data-types/bladeburner-data";
+import { IBladeburnerAction } from "/bladeburner/bladeburner-data";
 
 export async function main(ns: NS): Promise<void> {
     const uid = ns.args[0] as number;

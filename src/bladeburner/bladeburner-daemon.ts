@@ -1,5 +1,5 @@
 import { BladeburnerCurAction, NS } from "@ns";
-import { IBladeburnerData, IBladeburnerActionInfo, IBladeburnerAction, BladeburnerActionType, IBladeburnerCityInfo, IBladeburnerSkillInfo } from "/data-types/bladeburner-data";
+import { IBladeburnerData, IBladeburnerActionInfo, IBladeburnerAction, BladeburnerActionType, IBladeburnerCityInfo, IBladeburnerSkillInfo } from "./bladeburner-data";
 import { runDodgerScript } from "/helpers/dodger-helper";
 import { CITIES } from "/libraries/constants";
 import { PortNumber, purgePort, writeToPort } from "/libraries/port-handler";
@@ -149,13 +149,13 @@ async function setupEnvironment(ns: NS): Promise<void> {
 
 /*
  * ------------------------
- * > BLADEBURNER DATA UPDATE FUNCTION
+ * > DATA UPDATE FUNCTIONS
  * ------------------------
  */
 
 /**
- * Update data about Bladeburner.
- * @param ns NS object parameter.
+ * Update cycle data for the script.
+ * @param ns NS object.
  */
 async function updateData(ns: NS): Promise<void> {
     logger.log("Updating data...", { type: MessageType.debugLow });
