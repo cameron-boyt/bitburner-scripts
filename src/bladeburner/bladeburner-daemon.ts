@@ -1,5 +1,5 @@
 import { BladeburnerCurAction, NS } from "@ns";
-import { IBladeburnerData, IBladeburnerActionInfo, IBladeburnerAction, BladeburnerActionType, IBladeburnerCityInfo, IBladeburnerSkillInfo } from "./bladeburner-data";
+import { IBladeburnerData, IBladeburnerActionInfo, IBladeburnerAction, BladeburnerActionType, IBladeburnerCityInfo, IBladeburnerSkillInfo } from "/bladeburner/bladeburner-data";
 import { runDodgerScript } from "/helpers/dodger-helper";
 import { CITIES } from "/libraries/constants";
 import { PortNumber, purgePort, writeToPort } from "/libraries/port-handler";
@@ -51,17 +51,17 @@ const bladeburnerCityInfo: Record<string, IBladeburnerCityInfo> = {};
 /** Bladeburner skill limits and cost multipliers. */
 const bladeburnerSkillInfo: Record<string, IBladeburnerSkillInfo> = {
     "Blade's Intuition": { cost: 0, limit: Infinity, costMult: 2 },
-    Cloak: { cost: 0, limit: 25, costMult: 1 },
+    "Cloak": { cost: 0, limit: 25, costMult: 1 },
     "Short-Circuit": { cost: 0, limit: 25, costMult: 1 },
     "Digital Observer": { cost: 0, limit: Infinity, costMult: 2 },
-    Tracer: { cost: 0, limit: 5, costMult: 1 },
-    Overclock: { cost: 0, limit: 90, costMult: 1 },
-    Reaper: { cost: 0, limit: Infinity, costMult: 2 },
+    "Tracer": { cost: 0, limit: 5, costMult: 1 },
+    "Overclock": { cost: 0, limit: 90, costMult: 1 },
+    "Reaper": { cost: 0, limit: Infinity, costMult: 2 },
     "Evasive System": { cost: 0, limit: Infinity, costMult: 2 },
-    Datamancer: { cost: 0, limit: 10, costMult: 15 },
+    "Datamancer": { cost: 0, limit: 10, costMult: 15 },
     "Cyber's Edge": { cost: 0, limit: 10, costMult: 150 },
     "Hands of Midas": { cost: 0, limit: 10, costMult: 150 },
-    Hyperdrive: { cost: 0, limit: Infinity, costMult: 255 },
+    "Hyperdrive": { cost: 0, limit: Infinity, costMult: 255 },
 };
 
 /*
@@ -362,7 +362,7 @@ function testDoActionRecovery(): boolean {
 function testDoActionAnalysis(): boolean {
     logger.log("Testing if analysis is the correct action", { type: MessageType.debugLow });
     return Object.keys(bladeburnerActionInfo).some(
-        (action) => bladeburnerActionInfo[action].estimatedSuccessChance[1] - bladeburnerActionInfo[action].estimatedSuccessChance[0] > 0.25,
+        (action) => bladeburnerActionInfo[action].estimatedSuccessChance[1] - bladeburnerActionInfo[action].estimatedSuccessChance[0] > 0.25
     );
 }
 
@@ -491,12 +491,12 @@ function getBestAction(): string {
                 bladeburnerActionInfo[action].type !== BladeburnerActionType.BlackOp &&
                 bladeburnerActionInfo[action].countRemaining > 0 &&
                 bladeburnerActionInfo[action].estimatedSuccessChance[0] >= 0.35 &&
-                (action === "Raid" ? bladeburnerCityInfo[bladeburnerData.currentCity].population > 750e6 : true),
+                (action === "Raid" ? bladeburnerCityInfo[bladeburnerData.currentCity].population > 750e6 : true)
         )
         .sort(
             (a, b) =>
                 (bladeburnerActionInfo[b].repGain * bladeburnerActionInfo[b].estimatedSuccessChance[0]) / bladeburnerActionInfo[b].actionTime -
-                (bladeburnerActionInfo[a].repGain * bladeburnerActionInfo[a].estimatedSuccessChance[0]) / bladeburnerActionInfo[a].actionTime,
+                (bladeburnerActionInfo[a].repGain * bladeburnerActionInfo[a].estimatedSuccessChance[0]) / bladeburnerActionInfo[a].actionTime
         );
 
     return possibleActions[0];
@@ -610,7 +610,7 @@ export async function main(ns: NS): Promise<void> {
                 `Flags:\n` +
                 `   -h or --help    : boolean |>> Prints this.\n` +
                 `   -v or --verbose : boolean |>> Sets logging level to 2 - more verbosing logging.\n` +
-                `   -d or --debug   : boolean |>> Sets logging level to 3 - even more verbosing logging.`,
+                `   -d or --debug   : boolean |>> Sets logging level to 3 - even more verbosing logging.`
         );
 
         return;
