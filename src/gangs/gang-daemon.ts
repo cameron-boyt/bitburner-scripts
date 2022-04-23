@@ -1,29 +1,27 @@
-import { BitNodeMultipliers, GangGenInfo, GangMemberAscension, GangMemberInfo, GangTaskStats, NS } from '@ns'
-import { MessageType, ScriptLogger } from '/libraries/script-logger.js';
-import { PortNumber, purgePort, writeToPort } from '/libraries/port-handler.js';
-import { gangMemberNames, gangNames, GangSpecialTasks, IGangAscensionResult, IGangClashChance, IGangData, IGangEquipmentCost, IGangEquipmentOrder, IGangEquipmentType, IGangTaskAssign, IOtherGangData } from '/data-types/gang-data';
-import { genPlayer, IPlayerObject } from '/libraries/player-factory';
-import { readBitnodeMultiplierData } from '/data/read-bitnodemult-data';
-import { runDodgerScript, runDodgerScriptBulk } from '/helpers/dodger-helper';
-import { calculateMoneyGain, calculateRespectGain, calculateWantedLevelGain, calculateXpGain } from '/helpers/gang-helper';
-import { isNumber } from '/data-types/type-guards';
-import { IScriptRun } from '/data-types/dodger-data';
+import { BitNodeMultipliers, GangGenInfo, GangMemberAscension, GangMemberInfo, GangOtherInfoObject, GangTaskStats, NS } from "@ns";
+import { MessageType, ScriptLogger } from "/libraries/script-logger.js";
+import { PortNumber, purgePort, writeToPort } from "/libraries/port-handler.js";
+import { gangMemberNames, gangNames, GangSpecialTasks, IGangData, IGangEquipment } from "/gangs/gang-data";
+import { genPlayer, IPlayerObject } from "/libraries/player-factory";
+import { readBitnodeMultiplierData } from "/data/read-bitnodemult-data";
+import { runDodgerScript } from "/helpers/dodger-helper";
+import { calculateMoneyGain, calculateRespectGain, calculateWantedLevelGain, calculateXpGain } from "/helpers/gang-helper";
 
 // Script logger
-let logger : ScriptLogger;
+let logger: ScriptLogger;
 
 // Script refresh period
 const refreshPeriod = 8000;
 
 // Flags
-const flagSchema : [string, string | number | boolean | string[]][] = [
-	["h", false],
-	["help", false],
+const flagSchema: [string, string | number | boolean | string[]][] = [
+    ["h", false],
+    ["help", false],
     ["v", false],
     ["verbose", false],
     ["d", false],
     ["debug", false],
-    ["wild", false]
+    ["wild", false],
 ];
 
 // Flag set variables
@@ -35,301 +33,176 @@ let wildSpending = false; // Allow purchasing upgrades with all available money
 
 /*
  * > SCRIPT VARIABLES <
-*/
+ */
 
 /** Player object */
-let player : IPlayerObject;
+let player: IPlayerObject;
 
 /** Bitnode Multpliers */
-let multipliers : BitNodeMultipliers;
+let multipliers: BitNodeMultipliers;
 
 /** Gang state data object */
-let gangData : IGangData;
+let gangData: IGangData;
 
 /* Gang task list. */
-let taskInfo : GangTaskStats[];
+let taskInfo: GangTaskStats[];
 
 /* Gang equipment names. */
-let equipmentNames : string[];
-/* Gang equipment types. */
-let equipmentTypes : IGangEquipmentType[] = [];
-/* Gang equipment costs. */
-let equipmentCosts : IGangEquipmentCost[] = [];
+let equipmentNames: string[];
+
+/* Gang equipment information. */
+const gangEquipmentInfo: Record<string, IGangEquipment> = {};
 
 /* Gang member ascension results. */
-let ascensionResults : { name : string, result : GangMemberAscension | undefined }[] = [];
+const gangAscensionResults: Record<string, GangMemberAscension | undefined> = {};
 
 /** Proportion of generated funds to go back into upgrading gang members. */
 const profitRatioForUpgrades = 0.9;
 
 /*
  * ------------------------
- * > ENVIRONMENT SETUP FUNCTION
+ * > SCRIPT RUN TEST FUNCTIONS
  * ------------------------
-*/
+ */
 
 /**
- * Set up the environment for this script.
- * @param ns NS object parameter.
+ * Test if this script can/should be run.
+ * @param ns NS object.
+ * @returns True if the script can be run; false otherwise.
  */
-async function setupEnvironment(ns : NS) : Promise<void> {
-	player = genPlayer(ns);
-	multipliers = await readBitnodeMultiplierData(ns);
-
-	const result = await runDodgerScript<boolean>(ns, "/gangs/dodger/inGang.js");
-	if (!result) {
-		if (player.karma <= -54000 || player.bitnodeN === 2) {
-			await tryJoinGang(ns);
-		} else {
-			logger.log("Not in gang - aborting execution", { type: MessageType.error, sendToast: true });
-			ns.exit();
-			await ns.asleep(1000);
-		}
-	}
-
-	const results = await runDodgerScriptBulk(ns, [
-		{ script: "/gangs/dodger/getGangInformation.js", args: [] },
-		{ script: "/gangs/dodger/getOtherGangInformation.js", args: [] },
-		{ script: "/gangs/dodger/getTaskNames.js", args: [] },
-		{ script: "/gangs/dodger/getEquipmentNames.js", args: [] }
-	]);
-
-	const gangInfo = results[0] as GangGenInfo;
-	const otherGangInfo = results[1] as IOtherGangData[]
-	const tasks = results[2] as string[];
-	equipmentNames = results[3] as string[];
-
-	gangData = {
-		gangInfo: gangInfo,
-		otherGangInfo: otherGangInfo,
-		members: [],
-		clashChances: [],
-		nextPowerTick: 0,
-		lastUpdate: performance.now(),
-		currentFunds: 0,
-		refreshPeriod: refreshPeriod
-	};
-
-	const moreresults = await runDodgerScriptBulk(ns, [
-		{ script: "/gangs/dodger/getTaskStats-bulk.js", args: [JSON.stringify(tasks)] },
-		{ script: "/gangs/dodger/getEquipmentType-bulk.js", args: [JSON.stringify(equipmentNames)] }
-	]);
-
-	taskInfo = moreresults[0] as GangTaskStats[];
-	equipmentTypes = moreresults[1] as IGangEquipmentType[];
+async function canRunScript(ns: NS): Promise<boolean> {
+    const result = await runDodgerScript<boolean>(ns, "/gangs/dodger/inGang.js");
+    return result || ((player.karma <= -54000 || player.bitnodeN === 2) && tryJoinGang(ns));
 }
-
-/*
- * ------------------------
- * > GANG JOIN FUNCTION
- * ------------------------
-*/
 
 /**
  * Try to join a gang.
  * @param ns NS object parameter.
  */
-async function tryJoinGang(ns : NS) : Promise<void> {
-	if (player.factions.joinedFactions.includes("Speakers For The Dead")) {
-		const result = await runDodgerScript<boolean>(ns, "/gangs/dodger/createGang.js", "Speakers For The Dead");
-		if (!result) throw new Error("Failed to join gang with faction: Speakers For The Dead");
-	} else if (player.factions.joinedFactions.includes("Slum Snakes")) {
-		const result = await runDodgerScript<boolean>(ns, "/gangs/dodger/createGang.js", "Slum Snakes");
-		if (!result) throw new Error("Failed to join gang with faction: Slum Snakes");
-	} else {
-		const factionInvites = await runDodgerScript<string[]>(ns, "/singularity/dodger/checkFactionInvitations.js");
-		if (factionInvites.includes("Slum Snakes")) {
-			const factionJoinResult = await runDodgerScript<boolean>(ns, "/singularity/dodger/joinFaction.js", "Slum Snakes");
-			if (factionJoinResult) {
-				await runDodgerScript<boolean>(ns, "/gangs/dodger/createGang.js", "Slum Snakes");
-			} else {
-				throw new Error("Unable to join any faction in order to create a gang.");
-			}
-		}
-	}
+async function tryJoinGang(ns: NS): Promise<boolean> {
+    if (player.factions.joinedFactions.includes("Speakers For The Dead")) {
+        return runDodgerScript<boolean>(ns, "/gangs/dodger/createGang.js", "Speakers For The Dead");
+    } else if (player.factions.joinedFactions.includes("Slum Snakes")) {
+        return runDodgerScript<boolean>(ns, "/gangs/dodger/createGang.js", "Slum Snakes");
+    } else {
+        const factionInvites = await runDodgerScript<string[]>(ns, "/singularity/dodger/checkFactionInvitations.js");
+        if (factionInvites.includes("Slum Snakes")) {
+            const factionJoinResult = await runDodgerScript<boolean>(ns, "/singularity/dodger/joinFaction.js", "Slum Snakes");
+            return factionJoinResult && runDodgerScript<boolean>(ns, "/gangs/dodger/createGang.js", "Slum Snakes");
+        } else {
+            return false;
+        }
+    }
 }
 
 /*
  * ------------------------
- * > GANG DATA UPDATE FUNCTION
+ * > ENVIRONMENT SETUP FUNCTION
  * ------------------------
-*/
+ */
 
 /**
- * Update data on all things gang
+ * Set up the environment for this script.
  * @param ns NS object parameter.
  */
-async function updateGangData(ns : NS) : Promise<void> {
-	await getBulkData(ns);
+async function setupEnvironment(ns: NS): Promise<void> {
+    multipliers = await readBitnodeMultiplierData(ns);
 
-	const mult = (ns.gang.getBonusTime() >= 10 ? 10 : 1);
-	const moneyGained = mult * (gangData.gangInfo.moneyGainRate * 5) * ((performance.now() - gangData.lastUpdate) / 1000);
-	gangData.currentFunds += profitRatioForUpgrades * moneyGained;
+    const gangInfo = await runDodgerScript<GangGenInfo>(ns, "/gangs/dodger/getGangInformation.js");
+    const taskNames = await runDodgerScript<string[]>(ns, "/gangs/dodger/getTaskNames.js");
+    equipmentNames = await runDodgerScript<string[]>(ns, "/gangs/dodger/getEquipmentNames.js");
 
-	gangData.lastUpdate = performance.now();
+    gangData = {
+        gangInfo: gangInfo,
+        otherGangInfo: {},
+        members: [],
+        nextPowerTick: 0,
+        lastUpdate: performance.now(),
+        currentFunds: 0,
+        refreshPeriod: refreshPeriod,
+    };
 
-	logger.log("Pushing data to port", { type: MessageType.debugHigh });
-	purgePort(ns, PortNumber.GangData);
-	await writeToPort<IGangData>(ns, PortNumber.GangData, gangData)
+    taskInfo = await runDodgerScript<GangTaskStats[]>(ns, "/gangs/dodger/getTaskStats-bulk.js", taskNames);
+    const equipmentTypes = await runDodgerScript<string[]>(ns, "/gangs/dodger/getEquipmentType-bulk.js", equipmentNames);
+
+    for (let i = 0; i < equipmentNames.length; i++) {
+        gangEquipmentInfo[equipmentNames[i]] = { cost: 0, type: equipmentTypes[i] };
+    }
 }
 
 /*
  * ------------------------
- * > BULK DATA UPDATE FUNCTION
+ * > DATA UPDATE FUNCTIONS
  * ------------------------
-*/
+ */
 
 /**
- * [RAM DODGER]
- *
- * Get a bulk data object by calling the ram dodger script.
- * @param ns NS object parameter.
+ * Update cycle data for the script.
+ * @param ns NS object.
  */
-async function getBulkData(ns : NS) : Promise<void> {
-	const memberNames = await runDodgerScript<string[]>(ns, "/gangs/dodger/getMemberNames.js");
+async function updateData(ns: NS): Promise<void> {
+    logger.log("Updating data...", { type: MessageType.debugLow });
 
-	const results = await runDodgerScriptBulk(ns, [
-		{ script: "/gangs/dodger/getGangInformation.js", args: [] },
-		{ script: "/gangs/dodger/getMemberInformation-bulk.js", args: [JSON.stringify(memberNames)] },
-		{ script: "/gangs/dodger/getOtherGangInformation.js", args: [] },
-		{ script: "/gangs/dodger/getChanceToWinClash-bulk.js", args: [JSON.stringify(gangNames)] },
-		{ script: "/gangs/dodger/getEquipmentCost-bulk.js", args: [JSON.stringify(equipmentNames)] },
-		{ script: "/gangs/dodger/getAscensionResult-bulk.js", args: [JSON.stringify(memberNames)] }
-	]);
+    const mult = ns.gang.getBonusTime() >= 10 ? 10 : 1;
+    const moneyGained = mult * (gangData.gangInfo.moneyGainRate * 5) * ((performance.now() - gangData.lastUpdate) / 1000);
+    gangData.currentFunds += profitRatioForUpgrades * moneyGained;
 
-	gangData.gangInfo = results[0] as GangGenInfo;
-	gangData.members = results[1] as GangMemberInfo[];
-	gangData.otherGangInfo = results[2] as IOtherGangData[];
-	gangData.clashChances = results[3] as IGangClashChance[];
+    const memberNames = await runDodgerScript<string[]>(ns, "/gangs/dodger/getMemberNames.js");
 
-	equipmentCosts = results[4] as IGangEquipmentCost[];
+    gangData.gangInfo = await runDodgerScript<GangGenInfo>(ns, "/gangs/dodger/getGangInformation.js");
+    gangData.members = await runDodgerScript<GangMemberInfo[]>(ns, "/gangs/dodger/getMemberInformation-bulk.js", memberNames);
 
-	ascensionResults = results[5] as IGangAscensionResult[];
+    const powerAndTerritory = await runDodgerScript<GangOtherInfoObject[]>(ns, "/gangs/dodger/getOtherGangInformation-bulk.js", gangNames);
+    const clashChances = await runDodgerScript<number[]>(ns, "/gangs/dodger/getChanceToWinClash-bulk.js", gangNames);
+
+    for (let i = 0; i < gangNames.length; i++) {
+        gangData.otherGangInfo[gangNames[i]] = { power: powerAndTerritory[i].power, territory: powerAndTerritory[i].territory, clashChance: clashChances[i] };
+    }
+
+    const equipmentCosts = await runDodgerScript<number[]>(ns, "/gangs/dodger/getEquipmentCost-bulk.js", equipmentNames);
+
+    for (let i = 0; i < equipmentNames.length; i++) {
+        gangEquipmentInfo[equipmentNames[i]].cost = equipmentCosts[i];
+    }
+
+    const ascensionResults = await runDodgerScript<(GangMemberAscension | undefined)[]>(ns, "/gangs/dodger/getAscensionResult-bulk.js", memberNames);
+
+    for (let i = 0; i < gangNames.length; i++) {
+        gangAscensionResults[memberNames[i]] = ascensionResults[i];
+    }
 }
 
 /*
  * ------------------------
- * > GANG INFO GETTER FUNCTIONS
+ * > DO SCRIPT PROCESSING FUNCTIONS
  * ------------------------
-*/
-
-/**
- * Get the current power of a gang.
- * @param gangName Name of gang.
- * @returns Power of gang.
  */
-// function getGangPower(gangName : string) : number {
-// 	const power = otherGangInfo.find((x) => x.name === gangName)?.power;
-// 	if (power) {
-// 		return power;
-// 	} else {
-// 		throw new Error(`Could not find power for gang: ${gangName}.`);
-// 	}
-// }
 
 /**
- * Get the current territory of a gang.
- * @param gangName Name of gang.
- * @returns Territory of gang.
+ * Execute the funtionality of this script.
+ * @param ns NS object.
  */
-function getGangTerritory(gangName : string) : number {
-	const territory = gangData.otherGangInfo.find((x) => x.name === gangName)?.territory;
-	if (isNumber(territory)) {
-		return territory;
-	} else {
-		throw new Error(`Could not find territory for gang: ${gangName}.`);
-	}
-}
-
-/**
- * Get the current clash win chance against a gang.
- * @param gangName Name of gang.
- * @returns Clash win chance against a gang.
- */
-function getGangClashChance(gangName : string) : number {
-	const chance = gangData.clashChances.find((x) => x.name === gangName)?.chance;
-	if (isNumber(chance)) {
-		return chance;
-	} else {
-		throw new Error(`Could not find clash chance for gang: ${gangName}.`);
-	}
-}
-
-/*
- * ------------------------
- * > EQUIPMENT INFO GETTER FUNCTIONS
- * ------------------------
-*/
-
-/**
- * Get the type of a piece of gang equipment.
- * @param equipmentName Name of equipment.
- * @returns Type of equipment.
- */
-function getGangEquipmentType(equipmentName : string) : string {
-	const type = equipmentTypes.find((x) => x.name === equipmentName)?.type;
-	if (type) {
-		return type;
-	} else {
-		throw new Error(`Could not find equiment type for equipment item: ${equipmentName}.`);
-	}
-}
-
-/**
- * Get the cost of a piece of gang equipment.
- * @param equipmentName Name of equipment.
- * @returns Cost of equipment.
- */
-function getGangEquipmentCost(equipmentName : string) : number {
-	const cost = equipmentCosts.find((x) => x.name === equipmentName)?.cost;
-	if (cost) {
-		return cost;
-	} else {
-		throw new Error(`Could not find equiment cost for equipment item: ${equipmentName}.`);
-	}
-}
-
-/*
- * ------------------------
- * > GANG MEMBER NAME CREATOR FUNCTION
- * ------------------------
-*/
-
-/**
- * Construct and return a random name.
- * @returns A random name.
- * */
-function getGangMemberName() : string {
-	for (const name of gangMemberNames) {
-		if (!gangData.members.map((m) => m.name).includes(name)) return name;
-	}
-
-	return "???";
+async function doScriptFunctions(ns: NS): Promise<void> {
+    logger.log("Performing script functions...", { type: MessageType.debugLow });
+    await tryRecruitMembers(ns);
+    await tryAscendMembers(ns);
+    await tryPurchaseEquipment(ns);
+    await tryAssignTasks(ns);
 }
 
 /*
  * ------------------------
  * > GANG MEMBER RECRUIMENT FUNCTIONS
  * ------------------------
-*/
+ */
 
 /**
  * Try to recruit new gang members.
  * @param ns NS object parameter.
  */
-async function tryRecruitMembers(ns : NS) : Promise<void> {
-	const canRecruit = await canRecruitGangMember(ns);
-	if (canRecruit) await tryRecruitGangMember(ns);
-}
-
-/**
- * Test if a new gang member can be recruited.
- * @param ns NS object parameter.
- * @returns True if a new member can be recruited; false otherwise.
- */
-async function canRecruitGangMember(ns : NS) : Promise<boolean> {
-	const result = await runDodgerScript<boolean>(ns, "/gangs/dodger/canRecruitMember.js");
-	return result;
+async function tryRecruitMembers(ns: NS): Promise<void> {
+    const canRecruit = await runDodgerScript<boolean>(ns, "/gangs/dodger/canRecruitMember.js");
+    if (canRecruit) await tryRecruitGangMember(ns);
 }
 
 /**
@@ -337,121 +210,114 @@ async function canRecruitGangMember(ns : NS) : Promise<boolean> {
  * @param ns NS object parameter.
  * @returns True if a new member was recruited; false otherwise.
  */
-async function tryRecruitGangMember(ns : NS) : Promise<boolean> {
-	const name = getGangMemberName();
-	const result = await runDodgerScript<boolean>(ns, "/gangs/dodger/recruitMember.js", name);
-	if (result) {
-		logger.log(`Recruited new gang member: ${name}`, { type: MessageType.success, sendToast: true });
-	} else {
-		logger.log(`Failed to recruit new gang member`, { type: MessageType.fail, sendToast: true });
-	}
-	return result;
+async function tryRecruitGangMember(ns: NS): Promise<boolean> {
+    const name = getGangMemberName();
+    const result = await runDodgerScript<boolean>(ns, "/gangs/dodger/recruitMember.js", name);
+    if (result) {
+        logger.log(`Recruited new gang member: ${name}`, { type: MessageType.success, sendToast: true });
+    } else {
+        logger.log(`Failed to recruit new gang member`, { type: MessageType.fail, sendToast: true });
+    }
+    return result;
+}
+
+/**
+ * Construct and return a random name.
+ * @returns A random name.
+ * */
+function getGangMemberName(): string {
+    const currentNames = gangData.members.map((m) => m.name);
+    return gangMemberNames.filter((name) => !currentNames.includes(name))[0];
 }
 
 /*
  * ------------------------
  * > GANG MEMBER ASCENSION FUNCTIONS
  * ------------------------
-*/
+ */
 
 /**
  * Try to ascend gang members.
  * @param ns NS object parameter.
  */
-async function tryAscendMembers(ns : NS) : Promise<void> {
-	const scripts = generateAscensionScripts();
-	const results = await runDodgerScriptBulk(ns, scripts);
-	processAscensionResults(scripts, results);
+async function tryAscendMembers(ns: NS): Promise<void> {
+    const membersToAscend = gangData.members.filter((member) => shouldAscendMember(member)).map((member) => member.name);
+
+    if (membersToAscend.length > 0) {
+        const results = await runDodgerScript<boolean[]>(ns, "/gangs/dodger/ascendMember-bulk.js", membersToAscend);
+
+        for (let i = 0; i < results.length; i++) {
+            if (results[i]) {
+                logger.log(`Ascended gang member ${membersToAscend[i]}`, { type: MessageType.success, sendToast: true });
+            } else {
+                logger.log(`Failed to ascend gang member ${membersToAscend[i]}`, { type: MessageType.fail, sendToast: true });
+            }
+        }
+    }
 }
 
 /**
- * Generate an array of scripts that will ascend gang members if eligible.
- * @returns Array of scripts to run to ascend gang members.
- */
-function generateAscensionScripts() : IScriptRun[] {
-	const scripts : IScriptRun[] = [];
-
-	gangData.members.filter((member) => canAscendMember(member)).forEach((member) => {
-		scripts.push({ script: "/gangs/dodger/ascendMember.js", args: [member.name] });
-	});
-
-	return scripts;
-}
-
-/**
- * Test if a given gang member can be ascended.
+ * Test if a given gang member should be ascended.
  * @param member Gang member.
- * @returns True if the gang member can be ascended; false otherwise.
+ * @returns True if the gang member should be ascended; false otherwise.
  */
-function canAscendMember(member : GangMemberInfo) : boolean {
-	const ascendResult = ascensionResults.find((x) => x.name === member.name)?.result;
-	if (!ascendResult) return false;
-	if (gangData.gangInfo.isHacking) {
-		const avgAscMult = (member.cha_asc_mult + member.hack_asc_mult) / 2;
-		const ascMin = Math.max(1.1, 1.6 - Math.sqrt(avgAscMult / 200));
-		return ascendResult.cha > ascMin && ascendResult.hack > ascMin
-	} else {
-		const avgAscMult = (member.cha_asc_mult + member.def_asc_mult + member.dex_asc_mult + member.str_asc_mult) / 4;
-		const ascMin = Math.max(1.1, 1.6 - Math.sqrt(avgAscMult / 200));
-		return ascendResult.cha > ascMin && ascendResult.def > ascMin && ascendResult.dex > ascMin && ascendResult.str > ascMin;
-	}
-}
+function shouldAscendMember(member: GangMemberInfo): boolean {
+    const ascendResult = gangAscensionResults[member.name];
+    if (!ascendResult) return false;
 
-/**
- * Process the results of the run scripts for ascending gang members.
- * @param scripts Array of scripts that were run.
- * @param results Results of said run scripts.
- */
-function processAscensionResults(scripts : IScriptRun[], results : unknown[]) : void {
-	for (let i = 0; i < results.length; i++) {
-		if (results[i]) {
-			logger.log(`Ascended gang member ${scripts[i].args[0]}`, { type: MessageType.success, sendToast: true });
-		} else {
-			logger.log(`Failed to ascend gang member ${scripts[i].args[0]}`, { type: MessageType.fail, sendToast: true });
-		}
-	}
+    if (gangData.gangInfo.isHacking) {
+        const avgAscMult = (member.cha_asc_mult + member.hack_asc_mult) / 2;
+        const ascMin = Math.max(1.1, 1.6 - Math.sqrt(avgAscMult / 200));
+        return ascendResult.cha > ascMin && ascendResult.hack > ascMin;
+    } else {
+        const avgAscMult = (member.cha_asc_mult + member.def_asc_mult + member.dex_asc_mult + member.str_asc_mult) / 4;
+        const ascMin = Math.max(1.1, 1.6 - Math.sqrt(avgAscMult / 200));
+        return ascendResult.cha > ascMin && ascendResult.def > ascMin && ascendResult.dex > ascMin && ascendResult.str > ascMin;
+    }
 }
 
 /*
  * ------------------------
  * > GANG TASK ASSIGNER FUNCTIONS
  * ------------------------
-*/
+ */
 
 /**
  * Try to assign gang member tasks.
  * @param ns NS object parameter.
  */
-async function tryAssignTasks(ns : NS) : Promise<void> {
-	const script = generateAssignTaskScript();
-	if (script) {
-		const result = await runDodgerScript<boolean[]>(ns, script.script, ...script.args);
-		processAssignTaskResults(script, result);
-	}
+async function tryAssignTasks(ns: NS): Promise<void> {
+    const taskAssigns = getMemberTasksToAssign();
+    if (taskAssigns.length > 0) {
+        const result = await runDodgerScript<boolean[]>(ns, "/gangs/dodger/setMemberTask-bulk.js", taskAssigns);
+
+        for (let i = 0; i < result.length; i++) {
+            if (result[i]) {
+                logger.log(`Set member ${taskAssigns[i][0]} to task ${taskAssigns[i][1]}`, { type: MessageType.info });
+            } else {
+                logger.log(`Failed to set member ${taskAssigns[i][0]} to task ${taskAssigns[i][1]}`, { type: MessageType.fail });
+            }
+        }
+    }
 }
 
 /**
  * Generate a script that will assign tasks.
  * @returns Script to run to assign tasks to gang members.
  */
-function generateAssignTaskScript() : IScriptRun | undefined {
-	const taskAssigns : IGangTaskAssign[] = [];
+function getMemberTasksToAssign(): [string, string][] {
+    const taskAssigns: [string, string][] = [];
 
-	gangData.members.forEach((member) => {
-		const task = getTaskToAssign(member);
-		if (member.task === task ) {
-			logger.log(`Member ${member.name} is already performing task: ${task}`, { type: MessageType.debugLow });
-		} else {
-			taskAssigns.push({ member: member.name, task: task });
-		}
-	});
+    gangData.members.forEach((member) => {
+        const task = getTaskToAssign(member);
+        if (member.task === task) {
+            logger.log(`Member ${member.name} is already performing task: ${task}`, { type: MessageType.debugLow });
+        } else {
+            taskAssigns.push([member.name, task]);
+        }
+    });
 
-	if (taskAssigns.length > 0) {
-		const script = { script: "/gangs/dodger/setMemberTask-bulk.js", args: [JSON.stringify(taskAssigns)] };
-		return script;
-	} else {
-		return;
-	}
+    return taskAssigns;
 }
 
 /**
@@ -459,14 +325,12 @@ function generateAssignTaskScript() : IScriptRun | undefined {
  * @param member Gang member.
  * @returns True if the given task was successfully assigned; false otherwise.
  */
-function getTaskToAssign(member : GangMemberInfo) : string {
-	if (shouldAssignTrainHacking(member))  return "Train Hacking";
-	if (shouldAssignTrainCharisma(member)) return "Train Charisma";
-	if (shouldAssignTrainCombat(member))   return "Train Combat";
-	if (shouldAssignReduceWanted()) 	   return GangSpecialTasks.ReduceWantedLevel;
-
-	const task = getBestTask(member);
-	return task;
+function getTaskToAssign(member: GangMemberInfo): string {
+    if (shouldAssignTrainHacking(member)) return GangSpecialTasks.TrainHacking;
+    else if (shouldAssignTrainCharisma(member)) return GangSpecialTasks.TrainCharisma;
+    else if (shouldAssignTrainCombat(member)) return GangSpecialTasks.TrainCombat;
+    else if (shouldAssignReduceWanted()) return GangSpecialTasks.ReduceWantedLevel;
+    else return getBestTask(member);
 }
 
 /**
@@ -474,8 +338,8 @@ function getTaskToAssign(member : GangMemberInfo) : string {
  * @param member Gang member.
  * @returns True if train hacking should be assigned; false otherwise.
  */
-function shouldAssignTrainHacking(member : GangMemberInfo) : boolean {
-	return member.hack < 20;
+function shouldAssignTrainHacking(member: GangMemberInfo): boolean {
+    return member.hack < 20;
 }
 
 /**
@@ -483,8 +347,8 @@ function shouldAssignTrainHacking(member : GangMemberInfo) : boolean {
  * @param member Gang member.
  * @returns True if train charisma should be assigned; false otherwise.
  */
-function shouldAssignTrainCharisma(member : GangMemberInfo) : boolean {
-	return member.cha < 20;
+function shouldAssignTrainCharisma(member: GangMemberInfo): boolean {
+    return member.cha < 20;
 }
 
 /**
@@ -492,16 +356,16 @@ function shouldAssignTrainCharisma(member : GangMemberInfo) : boolean {
  * @param member Gang member.
  * @returns True if train combat should be assigned; false otherwise.
  */
-function shouldAssignTrainCombat(member : GangMemberInfo) : boolean {
-	return member.agi < 20 || member.def < 20 || member.dex < 20 || member.str < 20;
+function shouldAssignTrainCombat(member: GangMemberInfo): boolean {
+    return member.agi < 20 || member.def < 20 || member.dex < 20 || member.str < 20;
 }
 
 /**
  * Test if the reduce wanted task should be assigned to this gang member.
  * @returns True if the reduce wanted task should be assigned; false otherwise.
  */
-function shouldAssignReduceWanted() : boolean {
-	return gangData.gangInfo.wantedLevel > 100 && gangData.gangInfo.wantedPenalty < 0.8;
+function shouldAssignReduceWanted(): boolean {
+    return gangData.gangInfo.wantedLevel > 100 && gangData.gangInfo.wantedPenalty < 0.8;
 }
 
 /**
@@ -509,10 +373,10 @@ function shouldAssignReduceWanted() : boolean {
  * @param member Gang member.
  * @returns Name of best task to perform for a given gang member.
  */
-function getBestTask(member : GangMemberInfo) : string {
-	if 		(shouldAssignXpTask(member)) 		return getBestXpTask(member);
-	else if (shouldAssignRespectTask(member))   return getBestRespectTask(member);
-	else  								   		return getBestMoneyTask(member);
+function getBestTask(member: GangMemberInfo): string {
+    if (shouldAssignXpTask(member)) return getBestXpTask(member);
+    else if (shouldAssignRespectTask(member)) return getBestRespectTask(member);
+    else return getBestMoneyTask(member);
 }
 
 /**
@@ -520,30 +384,23 @@ function getBestTask(member : GangMemberInfo) : string {
  * @param member Gang member.
  * @returns True if a power task should be assigned; false otherwise.
  */
-function shouldAssignXpTask(member : GangMemberInfo) : boolean {
-	return (
-		member.def < 1500
-	);
+function shouldAssignXpTask(member: GangMemberInfo): boolean {
+    return member.def < 1500;
 }
 
 /**
  * Test if a respect task should be assigned.
  * @returns True if a respect task should be assigned; false otherwise.
  */
-function shouldAssignRespectTask(member : GangMemberInfo) : boolean {
-	return (
-		member.earnedRespect < 1e7 ||
-		gangData.members.length < 12 ||
-		getDiscount() < 1.67 ||
-		player.money >= 1e12
-	);
+function shouldAssignRespectTask(member: GangMemberInfo): boolean {
+    return member.earnedRespect < 1e7 || gangData.members.length < 12 || getDiscount() < 1.67 || player.money >= 1e12;
 }
 
 /**
  * Calculate the gang equipment discount multiplier.
  * @returns Discount multiplier for gang equipment.
  */
-function getDiscount() : number {
+function getDiscount(): number {
     const power = gangData.gangInfo.power;
     const respect = gangData.gangInfo.respect;
 
@@ -559,22 +416,23 @@ function getDiscount() : number {
  * @param member Gang member.
  * @returns Name of best xp task to perform.
  */
-function getBestXpTask(member : GangMemberInfo) : string {
-	const possibleTasks = taskInfo
-	.filter((task) =>
-		(task.isHacking && gangData.gangInfo.isHacking) || (task.isCombat && !gangData.gangInfo.isHacking) &&
-		calculateRespectGain(gangData.gangInfo, member, task, multipliers) > calculateWantedLevelGain(gangData.gangInfo, member, task) * 2 &&
-		task.defWeight > 0
-	)
-	.sort((a, b) =>
-		calculateXpGain(member, b) - calculateXpGain(member, a)
-	);
+function getBestXpTask(member: GangMemberInfo): string {
+    const possibleTasks = taskInfo
+        .filter(
+            (task) =>
+                (task.isHacking && gangData.gangInfo.isHacking) ||
+                (task.isCombat &&
+                    !gangData.gangInfo.isHacking &&
+                    calculateRespectGain(gangData.gangInfo, member, task, multipliers) > calculateWantedLevelGain(gangData.gangInfo, member, task) * 2 &&
+                    task.defWeight > 0)
+        )
+        .sort((a, b) => calculateXpGain(member, b) - calculateXpGain(member, a));
 
-	if (possibleTasks.length > 0) {
-		return possibleTasks[0].name;
-	} else {
-		throw new Error(`Could not find an xp task to assign to member: ${member.name}`);
-	}
+    if (possibleTasks.length > 0) {
+        return possibleTasks[0].name;
+    } else {
+        throw new Error(`Could not find an xp task to assign to member: ${member.name}`);
+    }
 }
 
 /**
@@ -582,21 +440,20 @@ function getBestXpTask(member : GangMemberInfo) : string {
  * @param member Gang member.
  * @returns Name of best respect task to perform.
  */
-function getBestRespectTask(member : GangMemberInfo) : string {
-	const possibleTasks = taskInfo
-	.filter((task) =>
-		((task.isHacking && gangData.gangInfo.isHacking) || (task.isCombat && !gangData.gangInfo.isHacking)) &&
-		calculateRespectGain(gangData.gangInfo, member, task, multipliers) > calculateWantedLevelGain(gangData.gangInfo, member, task) * 2
-	)
-	.sort((a, b) =>
-		calculateRespectGain(gangData.gangInfo, member, b, multipliers) - calculateRespectGain(gangData.gangInfo, member, a, multipliers)
-	);
+function getBestRespectTask(member: GangMemberInfo): string {
+    const possibleTasks = taskInfo
+        .filter(
+            (task) =>
+                ((task.isHacking && gangData.gangInfo.isHacking) || (task.isCombat && !gangData.gangInfo.isHacking)) &&
+                calculateRespectGain(gangData.gangInfo, member, task, multipliers) > calculateWantedLevelGain(gangData.gangInfo, member, task) * 2
+        )
+        .sort((a, b) => calculateRespectGain(gangData.gangInfo, member, b, multipliers) - calculateRespectGain(gangData.gangInfo, member, a, multipliers));
 
-	if (possibleTasks.length > 0) {
-		return possibleTasks[0].name;
-	} else {
-		throw new Error(`Could not find a respect task to assign to member: ${member.name}`);
-	}
+    if (possibleTasks.length > 0) {
+        return possibleTasks[0].name;
+    } else {
+        throw new Error(`Could not find a respect task to assign to member: ${member.name}`);
+    }
 }
 
 /**
@@ -604,85 +461,83 @@ function getBestRespectTask(member : GangMemberInfo) : string {
  * @param member Gang member.
  * @returns Name of best money task to perform.
  */
-function getBestMoneyTask(member : GangMemberInfo) : string {
-	const possibleTasks = taskInfo
-	.filter((task) =>
-		((task.isHacking && gangData.gangInfo.isHacking) || (task.isCombat && !gangData.gangInfo.isHacking)) &&
-		calculateRespectGain(gangData.gangInfo, member, task, multipliers) > calculateWantedLevelGain(gangData.gangInfo, member, task) * 2
-	)
-	.sort((a, b) =>
-		calculateMoneyGain(gangData.gangInfo, member, b, multipliers) - calculateMoneyGain(gangData.gangInfo, member, a, multipliers)
-	);
+function getBestMoneyTask(member: GangMemberInfo): string {
+    const possibleTasks = taskInfo
+        .filter(
+            (task) =>
+                ((task.isHacking && gangData.gangInfo.isHacking) || (task.isCombat && !gangData.gangInfo.isHacking)) &&
+                calculateRespectGain(gangData.gangInfo, member, task, multipliers) > calculateWantedLevelGain(gangData.gangInfo, member, task) * 2
+        )
+        .sort((a, b) => calculateMoneyGain(gangData.gangInfo, member, b, multipliers) - calculateMoneyGain(gangData.gangInfo, member, a, multipliers));
 
-	if (possibleTasks.length > 0) {
-		return possibleTasks[0].name;
-	} else {
-		throw new Error(`Could not find a money task to assign to member: ${member.name}`);
-	}
-}
-
-/**
- * Process the results of the run script for assigning tasks.
- * @param scripts Script that was run.
- * @param results Results of said run script.
- */
-function processAssignTaskResults(script : IScriptRun, results : unknown[]) : void {
-	const args : IGangTaskAssign[] = JSON.parse(script.args[0] as string);
-
-	for (let i = 0; i < results.length; i++) {
-		if (results[i]) {
-			logger.log(`Set member ${args[i].member} to task ${args[i].task}`, { type: MessageType.info })
-		} else {
-			logger.log(`Failed to set member ${args[i].member} to task ${args[i].task}`, { type: MessageType.fail });
-		}
-	}
+    if (possibleTasks.length > 0) {
+        return possibleTasks[0].name;
+    } else {
+        throw new Error(`Could not find a money task to assign to member: ${member.name}`);
+    }
 }
 
 /*
  * ------------------------
  * > GANG EQUIPMENT PURCHASING FUNCTIONS
  * ------------------------
-*/
+ */
 
 /**
  * Try to purchase equipment.
  * @param ns NS object parameter.
  */
-async function tryPurchaseEquipment(ns : NS) : Promise<void> {
-	const script = generatePurchaseEquipmentScript();
-	if (script) {
-		const result = await runDodgerScript<boolean[]>(ns, script.script, ...script.args);
-		processPurchaseEquipmentResults(script, result);
-	}
+async function tryPurchaseEquipment(ns: NS): Promise<void> {
+    const equipmentOrders = generateEquipmentOrders();
+    if (equipmentOrders.length > 0) {
+        const result = await runDodgerScript<boolean[][]>(ns, "/gangs/dodger/purchaseEquipment-bulk.js", equipmentOrders);
+
+        for (let i = 0; i < result.length; i++) {
+            const member = equipmentOrders[i][0];
+
+            for (let j = 0; j < result[i].length; j++) {
+                const equipment = equipmentOrders[i][1][j];
+                const cost = gangEquipmentInfo[equipment].cost;
+                const type = gangEquipmentInfo[equipment].type;
+
+                if (result[i][j]) {
+                    gangData.currentFunds -= cost;
+                    logger.log(`Purchased ${type}: ${equipment} for gang member ${member}`, { type: MessageType.info });
+                } else {
+                    logger.log(`Failed to purchase ${type}: ${equipment} for gang member ${member}`, { type: MessageType.fail });
+                }
+            }
+        }
+    }
 }
 
 /**
  * Generate a script that will purchase equipment.
  * @returns Script to run to purchase equipment to gang members.
  */
-function generatePurchaseEquipmentScript() : IScriptRun | undefined {
-	const equipmentOrders : IGangEquipmentOrder[] = [];
+function generateEquipmentOrders(): [string, string[]][] {
+    const equipmentOrders: [string, string[]][] = [];
 
-	let cumulativeCost = 0;
+    let cumulativeCost = 0;
 
-	gangData.members.forEach((member) => {
-		const unownedEquipment = equipmentNames.filter((equipment) => ![...member.upgrades, ...member.augmentations].includes(equipment));
+    gangData.members.forEach((member) => {
+        const unownedEquipment = equipmentNames.filter((equipment) => ![...member.upgrades, ...member.augmentations].includes(equipment));
+        const equipmentToPurchase: string[] = [];
 
-		unownedEquipment.forEach((equipment) => {
-			const cost = getGangEquipmentCost(equipment);
-			if (canPurchaseEquipment(cumulativeCost + cost)) {
-				equipmentOrders.push({ member: member.name, equipment: equipment });
-				cumulativeCost += cost;
-			}
-		});
-	});
+        unownedEquipment.forEach((equipment) => {
+            const cost = gangEquipmentInfo[equipment].cost;
+            if (canPurchaseEquipment(cumulativeCost + cost)) {
+                equipmentToPurchase.push(equipment);
+                cumulativeCost += cost;
+            }
+        });
 
-	if (equipmentOrders.length > 0) {
-		const script = { script: "/gangs/dodger/purchaseEquipment-bulk.js", args: [JSON.stringify(equipmentOrders)] };
-		return script;
-	} else {
-		return;
-	}
+        if (equipmentToPurchase.length > 0) {
+            equipmentOrders.push([member.name, equipmentToPurchase]);
+        }
+    });
+
+    return equipmentOrders;
 }
 
 /**
@@ -690,176 +545,192 @@ function generatePurchaseEquipmentScript() : IScriptRun | undefined {
  * @param cost Gang equipment cost.
  * @returns True if the equipment can be purchased, false otherwise.
  */
-function canPurchaseEquipment(cost : number) : boolean {
-	return (
-		player.money >= cost &&
-		(
-			wildSpending
-				? (player.money - cost >= 100e9)
-				: (gangData.currentFunds >= cost)
-		)
-	);
-}
-
-/**
- * Process the results of the run script for purchasing equipment.
- * @param script Script that was run.
- * @param results Results of said run script.
- */
-function processPurchaseEquipmentResults(script : IScriptRun, results : unknown[]) : void {
-	const args : IGangEquipmentOrder[] = JSON.parse(script.args[0] as string);
-
-	for (let i = 0; i < results.length; i++) {
-		const member = args[i].member as string;
-		const equipment = args[i].equipment as string;
-		const cost = getGangEquipmentCost(equipment);
-		const type = getGangEquipmentType(equipment);
-		if (results[i]) {
-			gangData.currentFunds -= cost;
-			logger.log(`Purchased ${type}: ${equipment} for gang member ${member}`, { type: MessageType.info });
-		} else {
-			logger.log(`Failed to purchase ${type}: ${equipment} for gang member ${member}`, { type: MessageType.fail });
-		}
-	}
+function canPurchaseEquipment(cost: number): boolean {
+    return player.money >= cost && (wildSpending ? player.money - cost >= 100e9 : gangData.currentFunds >= cost);
 }
 
 /*
  * ------------------------
  * > GANG CLASH ACTIVATION FUNCTION
  * ------------------------
-*/
+ */
 
 /**
  * Set gang clash state.
  * @param ns NS object parameter.
  */
-async function setGangClashState(ns : NS) : Promise<boolean> {
-	const state = gangNames.filter((gang) => gang !== gangData.gangInfo.faction && getGangTerritory(gang) > 0).every((gang) => getGangClashChance(gang) >= 0.55);
-	await runDodgerScript(ns, "/gangs/dodger/setTerritoryWarfare.js", state);
-	return state;
+async function setGangClashState(ns: NS): Promise<boolean> {
+    const state = gangNames
+        .filter((gang) => gang !== gangData.gangInfo.faction && gangData.otherGangInfo[gang].territory > 0)
+        .every((gang) => gangData.otherGangInfo[gang].clashChance >= 0.55);
+    await runDodgerScript(ns, "/gangs/dodger/setTerritoryWarfare.js", state);
+    console.log(state);
+    return state;
 }
 
 /*
  * ------------------------
  * > GANG TERRITORY TICK MANIPULATION FUNCTIONS
  * ------------------------
-*/
+ */
 
 /**
  * Test if a power task should be assigned.
  * @returns True if a power task should be assigned; false otherwise.
  */
- function shouldPerformPowerTickManipulation() : boolean {
-	return (
-		gangData.gangInfo.power < 15000 ||
-		gangNames.filter((gang) => gang !== gangData.gangInfo.faction && getGangTerritory(gang) > 0).some((gang) => getGangClashChance(gang) < 0.85)
-	);
+function shouldPerformPowerTickManipulation(): boolean {
+    return (
+        gangData.gangInfo.power < 15000 ||
+        gangNames.filter((gang) => gang !== gangData.gangInfo.faction && gangData.otherGangInfo[gang].territory > 0).some((gang) => gangData.otherGangInfo[gang].clashChance < 0.85)
+    );
 }
 
 /**
  * Wait until the next Gang power/territory tick threshold (~10% before the tick occurs).
  * @param ns NS object parameter.
  */
-async function waitUntilNextPowerTickThreshold(ns : NS) : Promise<void> {
-	const sleepTime = gangData.nextPowerTick - performance.now();
-	await ns.asleep(sleepTime);
+async function waitUntilNextPowerTickThreshold(ns: NS): Promise<void> {
+    const sleepTime = Math.max(0, gangData.nextPowerTick - performance.now());
+    await ns.asleep(sleepTime);
 }
 
 /**
  * Switch all gang members to the Territory Warfare task.
  * @param ns NS object parameter.
  */
-async function switchAllToTerritoryWarefare(ns : NS, onlyHighDef : boolean) : Promise<void> {
-	const taskAssigns : IGangTaskAssign[] = [];
+async function switchAllToTerritoryWarefare(ns: NS, onlyHighDef: boolean): Promise<void> {
+    const taskAssigns: [string, string][] = [];
 
-	gangData.members.filter((member) => ((onlyHighDef || gangData.gangInfo.territoryClashChance > 0) ? member.def >= 1500 : true))
-	.forEach((member) =>
-		taskAssigns.push({ member: member.name, task: GangSpecialTasks.PowerGain })
-	);
+    gangData.members
+        .filter((member) => (onlyHighDef || gangData.gangInfo.territoryClashChance > 0 ? member.def >= 1500 : true))
+        .forEach((member) => taskAssigns.push([member.name, GangSpecialTasks.PowerGain]));
 
-	const script = { script: "/gangs/dodger/setMemberTask-bulk.js", args: [JSON.stringify(taskAssigns)] };
+    const script = { script: "/gangs/dodger/setMemberTask-bulk.js", args: [taskAssigns] };
 
-	await runDodgerScript<boolean[]>(ns, script.script, ...script.args);
+    await runDodgerScript<boolean[]>(ns, script.script, ...script.args);
 
-	logger.log(`Swapping all Gang Members to ${GangSpecialTasks.PowerGain}`, { type: MessageType.info });
+    logger.log(`Swapping all Gang Members to ${GangSpecialTasks.PowerGain}`, { type: MessageType.info });
 }
 
 /**
  * Wait until the next Gang power/territory tick occurs.
  * @param ns NS object parameter.
  */
-async function waitForPowerTick(ns : NS) : Promise<void> {
-	while (true) {
-		let newPower = await runDodgerScript<IOtherGangData[]>(ns, "/gangs/dodger/getOtherGangInformation.js");
-		if (gangData.otherGangInfo.some((gang) => gang.power !== newPower.find((oGang) => oGang.name === gang.name)?.power)) {
-			break;
-		} else {
-			await ns.asleep(ns.gang.getBonusTime() > 1000 ? 25 : 250);
-		}
-	}
+async function waitForPowerTick(ns: NS): Promise<void> {
+    while (true) {
+        const newPower = await runDodgerScript<GangOtherInfoObject[]>(ns, "/gangs/dodger/getOtherGangInformation-bulk.js", gangNames);
 
-	gangData.nextPowerTick = performance.now() + (ns.gang.getBonusTime() > 10 ? 500 : 18000);
+        const powerful: Record<string, GangOtherInfoObject> = {};
+        for (let i = 0; i < gangNames.length; i++) {
+            powerful[gangNames[i]] = newPower[i];
+        }
+
+        if (Object.keys(gangData.otherGangInfo).some((gang) => gangData.otherGangInfo[gang].power !== powerful[gang].power)) {
+            break;
+        } else {
+            await ns.asleep(ns.gang.getBonusTime() > 1000 ? 25 : 250);
+        }
+    }
+
+    gangData.nextPowerTick = performance.now() + (ns.gang.getBonusTime() > 10 ? 500 : 18000);
+}
+
+/*
+ * ------------------------
+ * > DATA EXPORT FUNCTIONS
+ * ------------------------
+ */
+
+/**
+ * Package and export script data to a port to be used by other scripts.
+ * @param ns NS object.
+ */
+async function exportData(ns: NS): Promise<void> {
+    logger.log("Exporting data...", { type: MessageType.debugLow });
+
+    gangData.lastUpdate = performance.now();
+    purgePort(ns, PortNumber.GangData);
+    await writeToPort<IGangData>(ns, PortNumber.GangData, gangData);
+}
+
+/*
+ * ------------------------
+ * > SCRIPT CYCLE WAIT FUNCTIONS
+ * ------------------------
+ */
+
+/**
+ * Wait an amount of time before the script starts its next cycle.
+ * @param ns NS object.
+ */
+async function waitForScriptCycle(ns: NS): Promise<void> {
+    logger.log("Waiting for script sleep cycle...", { type: MessageType.debugLow });
+
+    const setClash = await setGangClashState(ns);
+
+    if (shouldPerformPowerTickManipulation()) {
+        await waitUntilNextPowerTickThreshold(ns);
+        await switchAllToTerritoryWarefare(ns, setClash);
+        await waitForPowerTick(ns);
+    } else {
+        await ns.asleep(refreshPeriod);
+    }
 }
 
 /*
  * ------------------------
  * > MAIN LOOP
  * ------------------------
-*/
+ */
 
-/** @param {NS} ns 'ns' namespace parameter. */
-export async function main(ns : NS) : Promise<void> {
-	ns.disableLog("ALL");
-	logger = new ScriptLogger(ns, "GANG", "Gang Management Daemon");
+/** @param ns NS object */
+export async function main(ns: NS): Promise<void> {
+    ns.disableLog("ALL");
+    logger = new ScriptLogger(ns, "GANG", "Gang Management Daemon");
+    player = genPlayer(ns);
 
     // Parse flags
-	const flags = ns.flags(flagSchema);
-	help = flags.h || flags["help"];
-	verbose = flags.v || flags["verbose"];
-	debug = flags.d || flags["debug"];
-	wildSpending = flags["wild"];
+    const flags = ns.flags(flagSchema);
+    help = flags.h || flags["help"];
+    verbose = flags.v || flags["verbose"];
+    debug = flags.d || flags["debug"];
+    wildSpending = flags["wild"];
 
-	if (verbose) logger.setLogLevel(2);
-	if (debug) 	 logger.setLogLevel(3);
+    if (verbose) logger.setLogLevel(2);
+    if (debug) logger.setLogLevel(3);
 
-	// Helper output
-	if (help) {
-		ns.tprintf('%s',
-			`Gang Management Daemon Helper\n`+
-			`Description:\n` +
-			`   Tired of being a crime lord? Have this wonderful script manage your peons for you!.\n` +
-			`Usage:\n` +
-			`   run /gangs/gang-daemon.js [flags]\n` +
-			`Flags:\n` +
-			`   -h or --help    : boolean |>> Prints this.\n` +
-			`   -v or --verbose : boolean |>> Sets logging level to 2 - more verbosing logging.\n` +
-			`   -d or --debug   : boolean |>> Sets logging level to 3 - even more verbosing logging.\n` +
-			`   	  --wild    : boolean |>> Enables spending money on upgrades as soon as they can be afforded.`
-		);
+    // Helper output
+    if (help) {
+        ns.tprintf(
+            "%s",
+            `Gang Management Daemon Helper\n` +
+                `Description:\n` +
+                `   Tired of being a crime lord? Have this wonderful script manage your peons for you!.\n` +
+                `Usage:\n` +
+                `   run /gangs/gang-daemon.js [flags]\n` +
+                `Flags:\n` +
+                `   -h or --help    : boolean |>> Prints this.\n` +
+                `   -v or --verbose : boolean |>> Sets logging level to 2 - more verbosing logging.\n` +
+                `   -d or --debug   : boolean |>> Sets logging level to 3 - even more verbosing logging.\n` +
+                `   	  --wild    : boolean |>> Enables spending money on upgrades as soon as they can be afforded.`
+        );
 
-		return;
-	}
+        return;
+    }
 
-	await setupEnvironment(ns);
-	logger.log("Waiting for next Power Tick...", { type: MessageType.info });
-	await waitForPowerTick(ns);
+    if (!(await canRunScript(ns))) {
+        logger.log("Conditions to run script are not met; exiting.", { type: MessageType.warning });
+        ns.exit();
+    }
 
-	logger.initialisedMessage(true, false);
+    await setupEnvironment(ns);
 
-	while (true) {
-		await updateGangData(ns);
-		await tryRecruitMembers(ns);
-		await tryAscendMembers(ns);
-		await tryPurchaseEquipment(ns);
-		await tryAssignTasks(ns);
-		const setClash = await setGangClashState(ns);
+    logger.initialisedMessage(true, false);
 
-		if (shouldPerformPowerTickManipulation()) {
-			await waitUntilNextPowerTickThreshold(ns);
-			await switchAllToTerritoryWarefare(ns, setClash);
-			await waitForPowerTick(ns);
-		} else {
-			await ns.asleep(refreshPeriod)
-		}
-	}
+    while (true) {
+        await updateData(ns);
+        await doScriptFunctions(ns);
+        await exportData(ns);
+        await waitForScriptCycle(ns);
+    }
 }

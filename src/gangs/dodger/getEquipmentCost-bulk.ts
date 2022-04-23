@@ -1,18 +1,11 @@
-import { NS } from '@ns'
+import { NS } from "@ns";
 
-export async function main(ns : NS) : Promise<void> {
-    const uid = ns.args[0] as number;
-    const equipmentNames : string[] = JSON.parse(ns.args[1] as string);
+export async function main(ns: NS): Promise<void> {
+    const uid = ns.args[0] as string;
+    const equipmentNames: string[] = JSON.parse(ns.args[1] as string);
 
-    const result = [];
-
-    for (const equipment of equipmentNames) {
-        result.push({
-            name: equipment,
-            cost: ns.gang.getEquipmentCost(equipment)
-        });
-    }
+    const result = equipmentNames.map((equipment) => ns.gang.getEquipmentCost(equipment));
 
     const filename = `/tmp/${uid}.txt`;
-    ns.write(filename, JSON.stringify(result), 'w');
+    ns.write(filename, JSON.stringify(result), "w");
 }

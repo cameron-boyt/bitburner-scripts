@@ -2,8 +2,9 @@ import { NS } from "@ns";
 
 export async function main(ns: NS): Promise<void> {
     const uid = ns.args[0] as string;
+    const memberNames: string[] = JSON.parse(ns.args[1] as string);
 
-    const result = ns.gang.getGangInformation();
+    const result = memberNames.map((member) => ns.gang.ascendMember(member));
 
     const filename = `/tmp/${uid}.txt`;
     ns.write(filename, JSON.stringify(result), "w");

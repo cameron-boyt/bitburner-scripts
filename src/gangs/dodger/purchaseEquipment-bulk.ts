@@ -1,16 +1,11 @@
-import { NS } from '@ns'
-import { IGangEquipmentOrder } from '/data-types/gang-data';
+import { NS } from "@ns";
 
-export async function main(ns : NS) : Promise<void> {
-    const uid = ns.args[0] as number;
-    const equipmentOrders : IGangEquipmentOrder[] = JSON.parse(ns.args[1] as string);
+export async function main(ns: NS): Promise<void> {
+    const uid = ns.args[0] as string;
+    const equipmentOrders: [string, string[]][] = JSON.parse(ns.args[1] as string);
 
-    const result : boolean[] = [];
-
-    for (const order of equipmentOrders) {
-        result.push(ns.gang.purchaseEquipment(order.member, order.equipment))
-    }
+    const result = equipmentOrders.map((fullOrder) => fullOrder[1].map((order) => ns.gang.purchaseEquipment(fullOrder[0], order)));
 
     const filename = `/tmp/${uid}.txt`;
-    ns.write(filename, JSON.stringify(result), 'w');
+    ns.write(filename, JSON.stringify(result), "w");
 }
