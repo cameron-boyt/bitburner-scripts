@@ -35,7 +35,7 @@ export async function runDodgerScript<T>(ns: NS, script: string, ...args: unknow
         await ns.asleep(5);
     }
 
-    const data = ns.read(filename);
+    const data = ns.read(filename) as string;
     ns.rm(filename);
 
     return JSON.parse(data) as T;
