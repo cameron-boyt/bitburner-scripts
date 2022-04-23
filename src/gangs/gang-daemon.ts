@@ -222,8 +222,8 @@ async function tryRecruitGangMember(ns: NS): Promise<boolean> {
 }
 
 /**
- * Construct and return a random name.
- * @returns A random name.
+ * Get the next applcable gang member name.
+ * @returns Gang member name.
  * */
 function getGangMemberName(): string {
     const currentNames = gangData.members.map((m) => m.name);
@@ -302,8 +302,8 @@ async function tryAssignTasks(ns: NS): Promise<void> {
 }
 
 /**
- * Generate a script that will assign tasks.
- * @returns Script to run to assign tasks to gang members.
+ * Get a list of tasks to assign each gang member to.
+ * @returns Tuple of gang member names and tasks to assign.
  */
 function getMemberTasksToAssign(): [string, string][] {
     const taskAssigns: [string, string][] = [];
@@ -512,8 +512,8 @@ async function tryPurchaseEquipment(ns: NS): Promise<void> {
 }
 
 /**
- * Generate a script that will purchase equipment.
- * @returns Script to run to purchase equipment to gang members.
+ * Consturct a list of gang member names and equipment to purchase for them.
+ * @returns Tuple of gang member name and list of equipment to purchase.
  */
 function generateEquipmentOrders(): [string, string[]][] {
     const equipmentOrders: [string, string[]][] = [];
