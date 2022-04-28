@@ -1,29 +1,80 @@
 import { NS } from "@ns";
 
-function isValidBuyTransaction(arr: number[], i: number): boolean {
-    if (i === 0) {
-        return arr[i] < arr[i + 1];
-    } else if (i === arr.length - 1) {
-        return false;
-    } else {
-        return arr[i] < arr[i - 1] && arr[i] < arr[i + 1];
-    }
-}
-
-function isValidSellTransaction(arr: number[], i: number): boolean {
-    if (i === 0) {
-        return false;
-    } else if (i === arr.length - 1) {
-        return arr[i] > arr[i - 1];
-    } else {
-        return arr[i] > arr[i - 1] && arr[i] > arr[i + 1];
-    }
-}
-
 interface IStockTransaction {
     buyday: number;
     sellday: number;
     profit: number;
+}
+
+/**
+ * Test if a buy transcation shoud be made on a given day.
+ * @param prices Stock price array
+ * @param i Day to buy
+ * @returns True if the transaction is valid; false otherwise.
+ */
+function isValidBuyTransaction(prices: number[], i: number): boolean {
+    if (i === 0) {
+        return prices[i] < prices[i + 1];
+    } else if (i === prices.length - 1) {
+        return false;
+    } else {
+        return prices[i] < prices[i - 1] && prices[i] < prices[i + 1];
+    }
+}
+
+/**
+ * Test if a sell transcation shoud be made on a given day.
+ * @param prices Stock price array
+ * @param i Day to sell
+ * @returns True if the transaction is valid; false otherwise.
+ */
+function isValidSellTransaction(prices: number[], i: number): boolean {
+    if (i === 0) {
+        return false;
+    } else if (i === prices.length - 1) {
+        return prices[i] > prices[i - 1];
+    } else {
+        return prices[i] > prices[i - 1] && prices[i] > prices[i + 1];
+    }
+}
+
+/**
+ * Get all valid combinations of transcations from a starting list of transactions.
+ * @param transcations Array of stock transactions
+ * @param n Number of trades that can be made
+ * @returns Array of combinations of the provided transcations.
+ */
+function getCombos(transcations: IStockTransaction[], n: number): IStockTransaction[][] {
+    if (n === 0 || transcations.length === 0) return [[]];
+    else {
+        const data = [];
+
+        for (const txn of transcations) {
+            const validTransactions = transcations.filter((v) => v.buyday > txn.sellday || v.sellday < txn.buyday);
+
+            const nonConflictingTransactions = validTransactions.filter((txn1, idx) =>
+                validTransactions
+                    .filter((_, i) => idx !== i)
+                    .every((txn2) => (txn1.buyday > txn2.sellday && txn1.sellday > txn2.sellday) || (txn1.buyday < txn2.buyday && txn1.sellday < txn2.buyday))
+            );
+
+            const conflictingTransactions = validTransactions.filter((txn1) =>
+                nonConflictingTransactions.every((txn2) => txn1.buyday !== txn2.buyday && txn1.sellday !== txn2.sellday && txn1.profit !== txn2.profit)
+            );
+
+            const partialData = [txn, ...nonConflictingTransactions];
+
+            const comboData = getCombos(conflictingTransactions, n - 1).filter((x) => x.length > 0);
+
+            if (comboData.length === 0) {
+                data.push([...partialData]);
+            } else {
+                comboData.forEach((c) => data.push([...partialData, ...c.flat()]));
+            }
+        }
+
+        return data;
+    }
 }
 
 /** @param ns NS object */
@@ -31,9 +82,12 @@ export async function main(ns: NS): Promise<void> {
     ns.disableLog("ALL");
 
     const tradeCount = 1000;
-    const stockPrices = [
-        38, 13, 127, 111, 122, 182, 24, 88, 18, 147, 100, 56, 86, 113, 183, 109, 196, 30, 94, 116, 124, 24, 60, 12, 119, 113, 183, 47, 81, 38, 136, 136, 109, 98, 142,
-    ];
+    const stockPrices = [169, 149, 94, 85, 133, 175, 120, 34, 38, 60, 86, 18, 13, 83, 16, 7, 57, 170];
+
+    console.log("Coding-Contract Algorthmic Stock Trader TEST");
+    console.log(`Trade Count: ${tradeCount}`);
+    console.log(`Stock Prices: ${stockPrices}`);
+    const start = new Date().getTime();
 
     const txns: IStockTransaction[] = [];
 
@@ -53,20 +107,20 @@ export async function main(ns: NS): Promise<void> {
             txns.filter((t2) => t2.sellday === t1.sellday && t2.buyday > t1.buyday && t2.profit >= t1.profit).length === 0
     );
 
-    console.log(pruned);
+    console.log("---");
+    for (const x of pruned) console.log(x);
 
-    let solutions = pruned.map((txn) => [txn]);
+    if (txns.length === 0) {
+        console.log(0);
+    } else {
+        const combos = getCombos(pruned, tradeCount);
+        const results = combos.map((combo) => combo.map((txn) => txn.profit).reduce((a, b) => a + b, 0)).sort((a, b) => b - a);
+        const solution = results[0];
 
-    for (let i = 0; i < pruned.length; i++) {
-        const tmpSolutions: IStockTransaction[][] = [];
-        solutions.forEach((sol) => {
-            const eligibleTxns = pruned.filter((txn) => sol.every((t) => t.buyday !== txn.sellday && t.sellday !== txn.buyday));
-
-            for (let j = 0; j < sol.length; j++) {}
-            eligibleTxns.forEach((txn) => tmpSolutions.push([...sol, txn]));
-        });
-        solutions = tmpSolutions;
+        const end = new Date().getTime();
+        console.log(`Finished solver in ${end - start}ms`);
+        console.log("Solution:");
+        console.log(solution);
+        console.log("---");
     }
-
-    console.log(solutions);
 }
