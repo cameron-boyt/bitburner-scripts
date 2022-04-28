@@ -719,7 +719,7 @@ function getValueOfStocksOwned(stock: IStockHolding): number {
  * @param ns NS object parameter.
  * @param sym Symbol of the stock to purchase.
  * @param shares Number of shares to purchase.
- * @param long True if this is a purchase in the long position; false otherwise.
+ * @param isLongTransaction True if this is a purchase in the long position; false otherwise.
  */
 async function doTransactionBuy(ns: NS, sym: string, shares: number, isLongTransaction: boolean): Promise<void> {
     const buyPrice = isLongTransaction ? await doTransactionBuyLong(ns, sym, shares) : await doTransactionBuyShort(ns, sym, shares);
@@ -820,6 +820,10 @@ async function sellAllHoldings(ns: NS): Promise<void> {
     }
 }
 
+/**
+ * Updates the stock HUD item.
+ * @returns Nothing.
+ */
 function initializeHud(): void {
     const d = eval("document");
     let htmlDisplay = d.getElementById("stock-display-1");
