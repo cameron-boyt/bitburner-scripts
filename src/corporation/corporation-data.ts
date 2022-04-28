@@ -8,15 +8,9 @@ export enum JobType {
     Unassigned = "Unassigned"
 }
 
-export interface ICorpUnlock {
-    name : string;
-    costThreshold : number;
-}
-
-export interface ICorpUpgrade {
-    name : string;
-    limit : number;
-    costThreshold : number;
+export interface ICorpUpgradeLimit {
+    limit: number;
+    costThreshold: number;
 }
 
 export enum IndustryType {
@@ -24,44 +18,46 @@ export enum IndustryType {
     Product
 }
 
-export function getIndustryFromEnum(type : IndustryType) : string {
-    switch(type) {
-        case IndustryType.Material: return "Material";
-        case IndustryType.Product: return "Product";
+export function getIndustryFromEnum(type: IndustryType): string {
+    switch (type) {
+        case IndustryType.Material:
+            return "Material";
+        case IndustryType.Product:
+            return "Product";
     }
 }
 
 export interface IDivisionLimits {
-    [key : number] : {
-        officeLimit : number;
-        warehouseLimit : number;
-        adVertLimit : number;
+    [key: number]: {
+        officeLimit: number;
+        warehouseLimit: number;
+        adVertLimit: number;
     };
 }
 
 export interface IProduct {
-    name : string;
-    developmentProgress : number;
-    successiveSellPriceIncreaseTicks : Record<string, number>;
+    name: string;
+    developmentProgress: number;
+    successiveSellPriceIncreaseTicks: Record<string, number>;
 }
 
 export interface IDivision {
-    name : string;
-    industry : string;
-    expenses : number;
-    revenue : number;
-    profit : number;
-    popularity : number;
-    awareness : number;
-    prodMult : number;
-    research : number;
-    products : IProduct[];
+    name: string;
+    industry: string;
+    expenses: number;
+    revenue: number;
+    profit: number;
+    popularity: number;
+    awareness: number;
+    prodMult: number;
+    research: number;
+    products: IProduct[];
 }
 
 export interface ICorpData {
-    funds : number;
-    isPublic : boolean;
-    divisions : IDivision[];
-    refreshPeriod : number;
-    lastUpdate : number;
+    funds: number;
+    isPublic: boolean;
+    divisions: IDivision[];
+    refreshPeriod: number;
+    lastUpdate: number;
 }

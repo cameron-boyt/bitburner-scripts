@@ -1,4 +1,4 @@
-import { NS } from '@ns'
+import { NS } from "@ns";
 
 // Script refresh period
 const refreshPeriod = 15000;
@@ -7,11 +7,11 @@ const refreshPeriod = 15000;
  * ------------------------
  * > MAIN LOOP
  * ------------------------
-*/
+ */
 
-/** @param {NS} ns 'ns' namespace parameter. */
-export async function main(ns: NS) : Promise<void> {
-	ns.disableLog("ALL");
+/** @param ns NS object */
+export async function main(ns: NS): Promise<void> {
+    ns.disableLog("ALL");
 
     const companies = [
         "ECorp",
@@ -23,14 +23,14 @@ export async function main(ns: NS) : Promise<void> {
         "OmniTek Incorporated",
         "Bachman & Associates",
         "Clarke Incorporated",
-        "Fulcrum Technologies"
-    ]
+        "Fulcrum Technologies",
+    ];
 
-	while (true) {
+    while (true) {
         for (const company of companies) {
-            ns.singularity.applyToCompany(company, "software")
+            ns.singularity.applyToCompany(company, "software");
         }
 
-		await ns.asleep(refreshPeriod);
-	}
+        await ns.asleep(refreshPeriod);
+    }
 }

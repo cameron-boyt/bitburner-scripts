@@ -48,9 +48,6 @@ interface IContract {
     type: string;
 }
 
-/** Array of active contracts */
-let contracts: IContract[] = [];
-
 /*
  * ------------------------
  * > ENVIRONMENT SETUP FUNCTION
@@ -63,7 +60,6 @@ let contracts: IContract[] = [];
  */
 function setupEnvironment(ns: NS): void {
     allServers = getAllServers(ns).filter((server) => server.substring(0, 6) !== "server");
-    contracts = [];
 }
 
 /*
@@ -202,7 +198,7 @@ export async function main(ns: NS): Promise<void> {
     logger.initialisedMessage(true, false);
 
     while (true) {
-        contracts = await getActiveContracts(ns);
+        const contracts = await getActiveContracts(ns);
         for (const contract of contracts) {
             const data = await runDodgerScript<never>(ns, "/coding-contracts/dodger/getData.js", contract.name, contract.hostname);
             const solution = getContractSolution(contract.type, data);

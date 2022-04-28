@@ -1,21 +1,21 @@
-import { CrimeStats, NS } from '@ns'
-import { MessageType, ScriptLogger } from '/libraries/script-logger.js';
-import { genPlayer, IPlayerObject } from '/libraries/player-factory.js';
-import { CrimeType } from '/data-types/crime-data.js';
-import { runDodgerScript } from '/helpers/dodger-helper';
-import { calculateCrimeChance, getBestCrime } from '/helpers/crime-helper';
-import { doSkillTraining } from '/helpers/skill-helper';
-import { Skill } from '/data-types/skill-data';
-import { peekPort, PortNumber } from '/libraries/port-handler';
-import { ISleeveData, ISleeveTaskCrime, SleeveTaskType } from '/data-types/sleeve-data';
+import { CrimeStats, NS } from "@ns";
+import { MessageType, ScriptLogger } from "/libraries/script-logger.js";
+import { genPlayer, IPlayerObject } from "/libraries/player-factory.js";
+import { CrimeType } from "/data-types/crime-data.js";
+import { runDodgerScript } from "/helpers/dodger-helper";
+import { calculateCrimeChance, getBestCrime } from "/helpers/crime-helper";
+import { doSkillTraining } from "/helpers/skill-helper";
+import { Skill } from "/data-types/skill-data";
+import { peekPort, PortNumber } from "../helpers/port-helper";
+import { ISleeveData, ISleeveTaskCrime, SleeveTaskType } from "/sleeves/sleeve-data";
 
 // Script logger
-let logger : ScriptLogger;
+let logger: ScriptLogger;
 
 // Flags
-const flagSchema : [string, string | number | boolean | string[]][] = [
-	["h", false],
-	["help", false],
+const flagSchema: [string, string | number | boolean | string[]][] = [
+    ["h", false],
+    ["help", false],
     ["v", false],
     ["verbose", false],
     ["d", false],
@@ -23,7 +23,7 @@ const flagSchema : [string, string | number | boolean | string[]][] = [
     ["money", false],
     ["karma", false],
     ["kills", false],
-    ["goal", Infinity]
+    ["goal", Infinity],
 ];
 
 // Flag set variables
@@ -37,25 +37,25 @@ let goal = Infinity; // Goal number of x to reach (depending on mode)
 
 /*
  * > SCRIPT VARIABLES <
-*/
+ */
 
 /** Player object */
-let player : IPlayerObject;
+let player: IPlayerObject;
 
 /** Type of crime to commit */
-let crimeType : CrimeType;
+let crimeType: CrimeType;
 
 /*
  * ------------------------
  * > ENVIRONMENT SETUP FUNCTION
  * ------------------------
-*/
+ */
 
 /**
  * Set up the environment for this script.
  * @param ns NS object parameter.
  */
-function setupEnvironment(ns : NS) : void {
+function setupEnvironment(ns: NS): void {
     player = genPlayer(ns);
     ns.tail();
 }
@@ -64,13 +64,13 @@ function setupEnvironment(ns : NS) : void {
  * ------------------------
  * > GOAL TIME ESTIMATION FUNCTIONS
  * ------------------------
-*/
+ */
 
 /**
  * Estimate how long until the player reaches the set goal
  * @param ns NS object parameter.
  */
- async function estimeTimeForGoal(ns : NS) : Promise<void> {
+async function estimeTimeForGoal(ns: NS): Promise<void> {
     const crimeData = await getBestCrime(ns, crimeType, player.stats, ns.getPlayer().crime_success_mult, 0, 12000);
 
     if (Math.abs(goal) !== Infinity) {
@@ -88,11 +88,14 @@ function setupEnvironment(ns : NS) : void {
  * Get the remaining amount of money/karma/kills to reach the goal.
  * @returns The remaining amount of x required to reach the specified goal.
  */
-function getRequiredAmount() : number {
+function getRequiredAmount(): number {
     switch (crimeType) {
-        case CrimeType.Money: return Math.max(0, goal - player.money);
-        case CrimeType.Karma: return Math.min(0, goal - player.karma);
-        case CrimeType.Kills: return Math.max(goal - player.peopleKilled);
+        case CrimeType.Money:
+            return Math.max(0, goal - player.money);
+        case CrimeType.Karma:
+            return Math.min(0, goal - player.karma);
+        case CrimeType.Kills:
+            return Math.max(goal - player.peopleKilled);
     }
 }
 
@@ -102,7 +105,7 @@ function getRequiredAmount() : number {
  * @param crime Crime data for which crime is being committed.
  * @returns Per second gain of resource.
  */
-function getPerSecondAmount(ns : NS, crime : CrimeStats) : number {
+function getPerSecondAmount(ns: NS, crime: CrimeStats): number {
     const crimeChance = calculateCrimeChance(crime, player.stats, ns.getPlayer().crime_success_mult) / (crime.time / 1000);
     const sleeveData = peekPort<ISleeveData>(ns, PortNumber.SleeveData);
     let sleeveBonus = 0;
@@ -110,31 +113,16 @@ function getPerSecondAmount(ns : NS, crime : CrimeStats) : number {
     switch (crimeType) {
         case CrimeType.Money:
             if (sleeveData)
-                sleeveData.sleeves.forEach((sleeve) => sleeveBonus += (
-                    sleeve.task.type === SleeveTaskType.Crime
-                        ? (sleeve.task.details as ISleeveTaskCrime).moneyPerSecond
-                        : 0
-                    )
-                );
-            return (crime.money * crimeChance) + sleeveBonus;
+                sleeveData.sleeves.forEach((sleeve) => (sleeveBonus += sleeve.task.type === SleeveTaskType.Crime ? (sleeve.task.details as ISleeveTaskCrime).moneyPerSecond : 0));
+            return crime.money * crimeChance + sleeveBonus;
         case CrimeType.Karma:
             if (sleeveData)
-                sleeveData.sleeves.forEach((sleeve) => sleeveBonus += (
-                    sleeve.task.type === SleeveTaskType.Crime
-                        ? (sleeve.task.details as ISleeveTaskCrime).karmaPerSecond
-                        : 0
-                    )
-                );
-            return (crime.karma * crimeChance) + sleeveBonus;
+                sleeveData.sleeves.forEach((sleeve) => (sleeveBonus += sleeve.task.type === SleeveTaskType.Crime ? (sleeve.task.details as ISleeveTaskCrime).karmaPerSecond : 0));
+            return crime.karma * crimeChance + sleeveBonus;
         case CrimeType.Kills:
             if (sleeveData)
-                sleeveData.sleeves.forEach((sleeve) => sleeveBonus += (
-                    sleeve.task.type === SleeveTaskType.Crime
-                        ? (sleeve.task.details as ISleeveTaskCrime).killsPerSecond
-                        : 0
-                    )
-                );
-            return (crime.kills * crimeChance) + sleeveBonus;
+                sleeveData.sleeves.forEach((sleeve) => (sleeveBonus += sleeve.task.type === SleeveTaskType.Crime ? (sleeve.task.details as ISleeveTaskCrime).killsPerSecond : 0));
+            return crime.kills * crimeChance + sleeveBonus;
     }
 }
 
@@ -145,20 +133,20 @@ function getPerSecondAmount(ns : NS, crime : CrimeStats) : number {
  * @param perSecond Resource gain per second.
  * @param timeRemaining Time remaining until goal is met.
  */
-function formatLogMessage(ns : NS, required : number, perSecond : number, timeRemaining : number) : void {
+function formatLogMessage(ns: NS, required: number, perSecond: number, timeRemaining: number): void {
     switch (crimeType) {
         case CrimeType.Money: {
-            const requiredStr = required === 0 ? "$-----" : ns.nFormat(required, '$0.000a');
-            const perSecondStr = ns.nFormat(perSecond, '$0.000a');
-            const timeRemainingStr = timeRemaining === 0 ? "--:--:--" : ns.nFormat(timeRemaining, '00:00:00');
+            const requiredStr = required === 0 ? "$-----" : ns.nFormat(required, "$0.000a");
+            const perSecondStr = ns.nFormat(perSecond, "$0.000a");
+            const timeRemainingStr = timeRemaining === 0 ? "--:--:--" : ns.nFormat(timeRemaining, "00:00:00");
             logger.log(`Remaining: ${requiredStr}, Gaining ${perSecondStr} /s, ETA: ${timeRemainingStr}`, { type: MessageType.info });
             break;
         }
         case CrimeType.Karma:
         case CrimeType.Kills: {
-            const requiredStr = required === 0 ? "-----" : ns.nFormat(required, '0');
-            const perSecondStr = ns.nFormat(perSecond, '0.000');
-            const timeRemainingStr = timeRemaining === 0 ? "--:--:--" : ns.nFormat(timeRemaining, '00:00:00');
+            const requiredStr = required === 0 ? "-----" : ns.nFormat(required, "0");
+            const perSecondStr = ns.nFormat(perSecond, "0.000");
+            const timeRemainingStr = timeRemaining === 0 ? "--:--:--" : ns.nFormat(timeRemaining, "00:00:00");
             logger.log(`Remaining: ${requiredStr}, Gaining ${perSecondStr} /s, ETA: ${timeRemainingStr}`, { type: MessageType.info });
             break;
         }
@@ -169,17 +157,20 @@ function formatLogMessage(ns : NS, required : number, perSecond : number, timeRe
  * ------------------------
  * > CRIME GOAL TEST FUNCTION
  * ------------------------
-*/
+ */
 
 /**
  * Test if the specified crime goal has been met.
  * @returns True if the crime goal has been met; false otherwise.
  */
-function hasMetGoal() : boolean {
+function hasMetGoal(): boolean {
     switch (crimeType) {
-        case CrimeType.Money: return player.money >= goal;
-        case CrimeType.Karma: return player.karma <= goal;
-        case CrimeType.Kills: return player.peopleKilled >= goal;
+        case CrimeType.Money:
+            return player.money >= goal;
+        case CrimeType.Karma:
+            return player.karma <= goal;
+        case CrimeType.Kills:
+            return player.peopleKilled >= goal;
     }
 }
 
@@ -187,38 +178,40 @@ function hasMetGoal() : boolean {
  * ------------------------
  * > CRIME COMMITTER FUNCTION
  * ------------------------
-*/
+ */
 
 /**
  * Execute the crime which has the most return for the specified type.
  * @param ns 'ns' namespace parameter.
  * @param type Type of crime to optimise for.
  */
-async function doBestCrime(ns : NS, type : CrimeType) : Promise<void> {
-    while (ns.singularity.isBusy()) { await ns.asleep(1000); }
+async function doBestCrime(ns: NS, type: CrimeType): Promise<void> {
+    while (ns.singularity.isBusy()) {
+        await ns.asleep(1000);
+    }
 
     const bestCrime = await getBestCrime(ns, type, player.stats, ns.getPlayer().crime_success_mult, 0, 12000);
     await runDodgerScript<number>(ns, "/singularity/dodger/commitCrime.js", bestCrime.name);
     await ns.asleep(bestCrime.time);
 }
 
-/** @param {NS} ns 'ns' namespace parameter. */
-export async function main(ns: NS) : Promise<void> {
-	ns.disableLog("ALL");
-	logger = new ScriptLogger(ns, "CRIME-DAE", "Crime Daemon");
+/** @param ns NS object */
+export async function main(ns: NS): Promise<void> {
+    ns.disableLog("ALL");
+    logger = new ScriptLogger(ns, "CRIME-DAE", "Crime Daemon");
 
-	// Parse flags
-	const flags = ns.flags(flagSchema);
-	help = flags.h || flags["help"];
-	verbose = flags.v || flags["verbose"];
-	debug = flags.d || flags["debug"];
+    // Parse flags
+    const flags = ns.flags(flagSchema);
+    help = flags.h || flags["help"];
+    verbose = flags.v || flags["verbose"];
+    debug = flags.d || flags["debug"];
     moneyFocus = flags["money"];
     karmaFocus = flags["karma"];
     killsFocus = flags["kills"];
     goal = flags["goal"];
 
-	if (verbose) logger.setLogLevel(2);
-	if (debug) 	 logger.setLogLevel(3);
+    if (verbose) logger.setLogLevel(2);
+    if (debug) logger.setLogLevel(3);
 
     if (moneyFocus) {
         logger.log(`Setting crime type to 'Money'`, { type: MessageType.info });
@@ -241,30 +234,30 @@ export async function main(ns: NS) : Promise<void> {
         logger.log(`No goal has been set. Script will run indefinitely`, { type: MessageType.warning });
     }
 
-	// Helper output
-	if (help) {
-		ns.tprintf(
-			`Crime Committer Helper:\n`+
-			`Description:\n` +
-			`   Commits crimes to your heart's content of the requested best type.\n` +
-			`   Supply multiple crime modes will cause them to be selected based on priority (Money > Karma > Kills).\n` +
-			`Usage:\n` +
-            `   run /singularity/crime-committer.js [flags]\n` +
-			`Flags:\n` +
-			`   --h or --help    : boolean |>> Prints this.\n` +
-			`   --v or --verbose : boolean |>> Sets logging level to 2 - more verbosing logging.\n` +
-			`   --d or --debug   : boolean |>> Sets logging level to 3 - even more verbosing logging. \n` +
-			`          --money   : boolean |>> Commit crimes maximising money gains. \n` +
-			`          --karma   : boolean |>> Commit crimes maximising karma gains. \n` +
-			`          --kills   : boolean |>> Commit crimes maximising people kill gains.`
-		);
+    // Helper output
+    if (help) {
+        ns.tprintf(
+            `Crime Committer Helper:\n` +
+                `Description:\n` +
+                `   Commits crimes to your heart's content of the requested best type.\n` +
+                `   Supply multiple crime modes will cause them to be selected based on priority (Money > Karma > Kills).\n` +
+                `Usage:\n` +
+                `   run /singularity/crime-committer.js [flags]\n` +
+                `Flags:\n` +
+                `   --h or --help    : boolean |>> Prints this.\n` +
+                `   --v or --verbose : boolean |>> Sets logging level to 2 - more verbosing logging.\n` +
+                `   --d or --debug   : boolean |>> Sets logging level to 3 - even more verbosing logging. \n` +
+                `          --money   : boolean |>> Commit crimes maximising money gains. \n` +
+                `          --karma   : boolean |>> Commit crimes maximising karma gains. \n` +
+                `          --kills   : boolean |>> Commit crimes maximising people kill gains.`
+        );
 
-		return;
-	}
+        return;
+    }
 
     setupEnvironment(ns);
 
-	logger.initialisedMessage(true, false);
+    logger.initialisedMessage(true, false);
 
     await doSkillTraining(ns, Skill.Agility, 23);
     await doSkillTraining(ns, Skill.Defense, 23);

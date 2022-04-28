@@ -1,12 +1,12 @@
-import { NS } from '@ns'
+import { NS } from "@ns";
 
-export async function main(ns : NS) : Promise<void> {
-    const uid = ns.args[0] as number;
+export async function main(ns: NS): Promise<void> {
+    const uid = ns.args[0] as string;
     const hostname = ns.args[1] as string;
 
     const result = true;
     ns.killall(hostname);
 
     const filename = `/tmp/${uid}.txt`;
-    await ns.write(filename, JSON.stringify(result), 'w');
+    await ns.write(filename, JSON.stringify(result), "w");
 }

@@ -297,8 +297,8 @@ function getBestAction(ns: NS): IHashPurchase | void {
     if (!wildSpending) actions = actions.filter((x) => x.cost / (x.return * calculateHashValue(ns)) <= returnOfInvestmentThreshold);
 
     if (actions.length > 0) {
-        const actionsByValue = actions.sort((a, b) => b.return / b.cost - a.return / a.cost);
-        return actionsByValue[0];
+        actions.sort((a, b) => b.return / b.cost - a.return / a.cost);
+        return actions[0];
     }
 }
 

@@ -1,21 +1,21 @@
-import { NS } from '@ns';
-import { ICorpData, ICorpUnlock, ICorpUpgrade, IDivisionLimits, IndustryType, IProduct, JobType } from '/data-types/corporation-data.js';
-import { runDodgerScript } from '/helpers/dodger-helper';
-import { CITIES, INDUSTRIES, PRODUCT_INDUSTRIES } from '/libraries/constants.js';
-import { genPlayer, IPlayerObject } from '/libraries/player-factory.js';
-import { PortNumber, purgePort, writeToPort } from '/libraries/port-handler.js';
-import { MessageType, ScriptLogger } from '/libraries/script-logger.js';
+import { NS } from "@ns";
+import { ICorpData, ICorpUpgradeLimit, IDivisionLimits, IndustryType, IProduct, JobType } from "/corporation/corporation-data.js";
+import { runDodgerScript } from "/helpers/dodger-helper";
+import { CITIES, INDUSTRIES, PRODUCT_INDUSTRIES } from "/libraries/constants.js";
+import { genPlayer, IPlayerObject } from "/libraries/player-factory.js";
+import { PortNumber, purgePort, writeToPort } from "/helpers/port-helper.js";
+import { MessageType, ScriptLogger } from "/libraries/script-logger.js";
 
 // Script logger
-let logger : ScriptLogger;
+let logger: ScriptLogger;
 
 // Args ???
-let industries : string[] = [];
+let industries: string[] = [];
 
 // Flags
-const flagSchema : [string, string | number | boolean | string[]][] = [
-	["h", false],
-	["help", false],
+const flagSchema: [string, string | number | boolean | string[]][] = [
+    ["h", false],
+    ["help", false],
     ["v", false],
     ["verbose", false],
     ["d", false],
@@ -29,8 +29,7 @@ let debug = false;
 // Set valid material and product industries
 
 // This player and server objects
-let player : IPlayerObject;
-//let machine : IServerObject;
+let player: IPlayerObject;
 
 // Coporation research upgrades
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -55,32 +54,39 @@ const researchUpgrades = [
     "Drones - Transport",
     "HRBuddy-Recruitment",
     "HRBuddy-Training",
-    "uPgrade: Dashboard",
+    "uPgrade: Dashboard"
 ];
 
 // Corporation main upgrades
-const corpUnlocks : ICorpUnlock[] = [
-    { name: "Smart Supply", costThreshold: 1 },
-    { name: "Export", costThreshold: 1000 },
-    { name: "Market Data - Competition", costThreshold: 1000 },
-    { name: "Market Research - Demand", costThreshold: 1000 },
-    { name: "VeChain", costThreshold: 1000 },
-    { name: "Shady Accounting", costThreshold: 4 },
-    { name: "Government Partnership", costThreshold: 4 },
-    { name: "Office API", costThreshold: 25 },
-    { name: "Warehouse API", costThreshold: 25 }
-];
+const corporationUnlocks: Record<string, number> = {
+    "Smart Supply": 1,
+    "Export": 1000,
+    "Market Data - Competition": 1000,
+    "Market Research - Demand": 1000,
+    "VeChain": 1000,
+    "Shady Accounting": 4,
+    "Government Partnership": 4,
+    "Office API": 25,
+    "Warehouse API": 25
+};
 
-let corpUpgrades : ICorpUpgrade[] = [];
-let divisionLimits : IDivisionLimits = {};
+const corporationUpgrades: Record<string, ICorpUpgradeLimit> = {
+    "FocusWires": { limit: 0, costThreshold: 1 },
+    "Neural Accelerators": { limit: 0, costThreshold: 1 },
+    "Speech Processor Implants": { limit: 0, costThreshold: 1 },
+    "Nuoptimal Nootropic Injector Implants": { limit: 0, costThreshold: 1 },
+    "Smart Factories": { limit: 0, costThreshold: 1 },
+    "Smart Storage": { limit: 0, costThreshold: 1 },
+    "DreamSense": { limit: 0, costThreshold: 1 },
+    "Project Insight": { limit: 0, costThreshold: 1 },
+    "ABC SalesBots": { limit: 0, costThreshold: 1 },
+    "Wilson Analytics": { limit: 0, costThreshold: 1 }
+};
+
+let divisionLimits: IDivisionLimits = {};
 
 // Investment offer acceptance thresholds
-const investmentAcceptanceThresholds = [
-    180e9,
-    5e12,
-    5e15,
-    5e18
-];
+const investmentAcceptanceThresholds = [180e9, 5e12, 5e15, 5e18];
 
 let hasOfficeAPI = false;
 let hasWarehouseAPI = false;
@@ -88,7 +94,7 @@ let hasWarehouseAPI = false;
 // Set main production city for product industries
 const mainProductionCity = "Aevum";
 
-const corpData : ICorpData = {
+const corpData: ICorpData = {
     funds: 0,
     isPublic: false,
     divisions: [],
@@ -100,13 +106,13 @@ const corpData : ICorpData = {
  * ------------------------
  * > ENVIRONMENT SETUP FUNCTION
  * ------------------------
-*/
+ */
 
 /**
  * Set up the environment for this script.
  * @param ns NS object parameter.
  */
- function setupCorporationEnvironment(ns : NS) : void {
+function setupCorporationEnvironment(ns: NS): void {
     corpData.funds = 0;
     corpData.divisions = [];
     corpData.lastUpdate = 0;
@@ -128,13 +134,13 @@ const corpData : ICorpData = {
  * ------------------------
  * > CORPORATION API CHECKER FUNCTION
  * ------------------------
-*/
+ */
 
 /**
  * Check if the player has access to the corporation APIs.
  * @param ns NS object parameter.
  */
-function processCheckForCorporationAPIs(ns : NS) : void {
+function processCheckForCorporationAPIs(ns: NS): void {
     hasOfficeAPI = ns.corporation.hasUnlockUpgrade("Office API");
     hasWarehouseAPI = ns.corporation.hasUnlockUpgrade("Warehouse API");
 }
@@ -143,33 +149,32 @@ function processCheckForCorporationAPIs(ns : NS) : void {
  * ------------------------
  * > CORP DATA UPDATE FUNCTION
  * ------------------------
-*/
+ */
 
 /**
  * Update the current coporation state and dump it into an object.
  * @param ns NS object parameter.
  */
-async function updateCorpData(ns : NS) : Promise<void> {
+async function updateCorpData(ns: NS): Promise<void> {
     corpData.funds = ns.corporation.getCorporation().funds;
 
-    const successTicks : Record<string, number> = {};
-    CITIES.forEach(c => successTicks[c] = 0);
+    const successTicks: Record<string, number> = {};
+    CITIES.forEach((c) => (successTicks[c] = 0));
 
     for (const division of ns.corporation.getCorporation().divisions) {
-
-        const dataDiv = corpData.divisions.find(x => x.name === division.name);
+        const dataDiv = corpData.divisions.find((x) => x.name === division.name);
         if (dataDiv) {
-            dataDiv.expenses = (division.thisCycleExpenses === 0) ? dataDiv.expenses : division.thisCycleExpenses;
-            dataDiv.revenue = (division.thisCycleRevenue === 0) ? dataDiv.revenue : division.thisCycleRevenue;
+            dataDiv.expenses = division.thisCycleExpenses === 0 ? dataDiv.expenses : division.thisCycleExpenses;
+            dataDiv.revenue = division.thisCycleRevenue === 0 ? dataDiv.revenue : division.thisCycleRevenue;
             dataDiv.profit = dataDiv.revenue - dataDiv.expenses;
             dataDiv.popularity = division.popularity;
             dataDiv.awareness = division.awareness;
             dataDiv.prodMult = division.prodMult;
             dataDiv.research = division.research;
 
-            const products : IProduct[] = [];
+            const products: IProduct[] = [];
             for (const product of division.products) {
-                const dataDivProduct = dataDiv.products.find(x => x.name === product);
+                const dataDivProduct = dataDiv.products.find((x) => x.name === product);
                 if (!dataDivProduct) {
                     const productInfo = ns.corporation.getProduct(division.name, product);
                     products.push({
@@ -179,7 +184,11 @@ async function updateCorpData(ns : NS) : Promise<void> {
                     });
                 } else {
                     const productInfo = ns.corporation.getProduct(division.name, product);
-                    products.push({ name: productInfo.name, developmentProgress: productInfo.developmentProgress, successiveSellPriceIncreaseTicks: dataDivProduct.successiveSellPriceIncreaseTicks });
+                    products.push({
+                        name: productInfo.name,
+                        developmentProgress: productInfo.developmentProgress,
+                        successiveSellPriceIncreaseTicks: dataDivProduct.successiveSellPriceIncreaseTicks
+                    });
                 }
             }
 
@@ -190,8 +199,8 @@ async function updateCorpData(ns : NS) : Promise<void> {
             for (const product of division.products) {
                 const productInfo = ns.corporation.getProduct(division.name, product);
 
-                const successTicks : Record<string, number> = {};
-                CITIES.forEach(c => successTicks[c] = 0);
+                const successTicks: Record<string, number> = {};
+                CITIES.forEach((c) => (successTicks[c] = 0));
 
                 products.push({
                     name: productInfo.name,
@@ -227,14 +236,14 @@ async function updateCorpData(ns : NS) : Promise<void> {
  * ------------------------
  * > FOUND CORPORATION FUNCTION
  * ------------------------
-*/
+ */
 
 /**
  * Try to found a new corporation.
  * @param ns NS object parameter.
  * @returns True if a corporation was founded, or if one already existed; false otherwise.
  */
-function tryFoundCorporation(ns : NS) : boolean {
+function tryFoundCorporation(ns: NS): boolean {
     if (player.hasCorp) {
         return true;
     } else if (player.bitnodeN === 3) {
@@ -250,19 +259,24 @@ function tryFoundCorporation(ns : NS) : boolean {
  * ------------------------
  * > CORPORATION LIFECYCLE STAGE SETTER FUNCTION
  * ------------------------
-*/
+ */
 
 /**
  * Set the current stage of the corporation based on which investment round we are on.
  * @param ns NS object parameter.
  */
-function setCorporationStage(ns : NS) : void {
+function setCorporationStage(ns: NS): void {
     switch (ns.corporation.getInvestmentOffer().round) {
-        case 1: return setStageOneLimits();
-        case 2: return setStageTwoLimits();
-        case 3: return setStageThreeLimits();
-        case 4: return setStageFourLimits();
-        case 5: return setStageFiveLimits(ns);
+        case 1:
+            return setStageOneLimits();
+        case 2:
+            return setStageTwoLimits();
+        case 3:
+            return setStageThreeLimits();
+        case 4:
+            return setStageFourLimits();
+        case 5:
+            return setStageFiveLimits(ns);
     }
 }
 
@@ -270,20 +284,17 @@ function setCorporationStage(ns : NS) : void {
  * ------------------------
  * > SET STAGE LIMIT FUNCTIONS
  * ------------------------
-*/
+ */
 
 /**
  * Set the upgrade limits for a stage 1 corporation.
  */
-function setStageOneLimits() : void {
-    corpUpgrades = [
-        { name: "FocusWires", limit: 2, costThreshold: 1 },
-        { name: "Neural Accelerators", limit: 2, costThreshold: 1 },
-        { name: "Speech Processor Implants", limit: 2, costThreshold: 1 },
-        { name: "Nuoptimal Nootropic Injector Implants", limit: 2, costThreshold: 1 },
-        { name: "Smart Factories", limit: 2, costThreshold: 1 },
-        { name: "Wilson Analytics", limit: 0, costThreshold: 1 }
-    ];
+function setStageOneLimits(): void {
+    corporationUpgrades["FocusWires"] = { limit: 2, costThreshold: 1 };
+    corporationUpgrades["Neural Accelerators"] = { limit: 2, costThreshold: 1 };
+    corporationUpgrades["Speech Processor Implants"] = { limit: 2, costThreshold: 1 };
+    corporationUpgrades["Nuoptimal Nootropic Injector Implants"] = { limit: 2, costThreshold: 1 };
+    corporationUpgrades["Smart Factories"] = { limit: 2, costThreshold: 1 };
 
     divisionLimits = {};
     divisionLimits[IndustryType.Material] = { warehouseLimit: 300, officeLimit: 3, adVertLimit: 1 };
@@ -293,17 +304,14 @@ function setStageOneLimits() : void {
 /**
  * Set the upgrade limits for a stage 2 corporation.
  */
-function setStageTwoLimits() : void {
-    corpUpgrades = [
-        { name: "FocusWires", limit: 2, costThreshold: 1 },
-        { name: "Neural Accelerators", limit: 2, costThreshold: 1 },
-        { name: "Speech Processor Implants", limit: 2, costThreshold: 1 },
-        { name: "Nuoptimal Nootropic Injector Implants", limit: 2, costThreshold: 1 },
-        { name: "Smart Factories", limit: 10, costThreshold: 1 },
-        { name: "Smart Storage", limit: 10, costThreshold: 1 },
-        { name: "DreamSense", limit: 1, costThreshold: 1 },
-        { name: "Wilson Analytics", limit: 0, costThreshold: 1 }
-    ];
+function setStageTwoLimits(): void {
+    corporationUpgrades["FocusWires"] = { limit: 8, costThreshold: 1 };
+    corporationUpgrades["Neural Accelerators"] = { limit: 8, costThreshold: 1 };
+    corporationUpgrades["Speech Processor Implants"] = { limit: 8, costThreshold: 1 };
+    corporationUpgrades["Nuoptimal Nootropic Injector Implants"] = { limit: 8, costThreshold: 1 };
+    corporationUpgrades["Smart Factories"] = { limit: 10, costThreshold: 1 };
+    corporationUpgrades["Smart Storage"] = { limit: 10, costThreshold: 1 };
+    corporationUpgrades["DreamSense"] = { limit: 1, costThreshold: 1 };
 
     divisionLimits = {};
     divisionLimits[IndustryType.Material] = { warehouseLimit: 1000, officeLimit: 9, adVertLimit: 1 };
@@ -313,70 +321,64 @@ function setStageTwoLimits() : void {
 /**
  * Set the upgrade limits for a stage 3 corporation.
  */
-function setStageThreeLimits() : void {
-    corpUpgrades = [
-        { name: "FocusWires", limit: 30, costThreshold: 1 },
-        { name: "Neural Accelerators", limit: 30, costThreshold: 1 },
-        { name: "Speech Processor Implants", limit: 30, costThreshold: 1 },
-        { name: "Nuoptimal Nootropic Injector Implants", limit: 30, costThreshold: 1 },
-        { name: "Smart Factories", limit: 10, costThreshold: 1 },
-        { name: "Smart Storage", limit: 30, costThreshold: 1 },
-        { name: "DreamSense", limit: 10, costThreshold: 1 },
-        { name: "Project Insight", limit: 20, costThreshold: 1 },
-        { name: "ABC SalesBots", limit: 30, costThreshold: 1 },
-        { name: "Wilson Analytics", limit: Infinity, costThreshold: 1 }
-    ];
+function setStageThreeLimits(): void {
+    corporationUpgrades["FocusWires"] = { limit: 30, costThreshold: 1 };
+    corporationUpgrades["Neural Accelerators"] = { limit: 30, costThreshold: 1 };
+    corporationUpgrades["Speech Processor Implants"] = { limit: 30, costThreshold: 1 };
+    corporationUpgrades["Nuoptimal Nootropic Injector Implants"] = { limit: 30, costThreshold: 1 };
+    corporationUpgrades["Smart Factories"] = { limit: 10, costThreshold: 1 };
+    corporationUpgrades["Smart Storage"] = { limit: 30, costThreshold: 1 };
+    corporationUpgrades["DreamSense"] = { limit: 10, costThreshold: 1 };
+    corporationUpgrades["Project Insight"] = { limit: 20, costThreshold: 1 };
+    corporationUpgrades["ABC SalesBots"] = { limit: 30, costThreshold: 1 };
+    corporationUpgrades["Wilson Analytics"] = { limit: Infinity, costThreshold: 1 };
 
     divisionLimits = {};
     divisionLimits[IndustryType.Material] = { warehouseLimit: 1500, officeLimit: 9, adVertLimit: 10 };
-    divisionLimits[IndustryType.Product] = { warehouseLimit: 2500, officeLimit: 90,  adVertLimit: Infinity };
+    divisionLimits[IndustryType.Product] = { warehouseLimit: 2500, officeLimit: 90, adVertLimit: Infinity };
 }
 
 /**
  * Set the upgrade limits for a stage 4 corporation.
  */
-function setStageFourLimits() : void {
-    corpUpgrades = [
-        { name: "FocusWires", limit: 100, costThreshold: 1000 },
-        { name: "Neural Accelerators", limit: 100, costThreshold: 1000 },
-        { name: "Speech Processor Implants", limit: 100, costThreshold: 1000 },
-        { name: "Nuoptimal Nootropic Injector Implants", limit: 100, costThreshold: 1000 },
-        { name: "Smart Factories", limit: 100, costThreshold: 1000  },
-        { name: "Smart Storage", limit: 100, costThreshold: 25 },
-        { name: "DreamSense", limit: 10, costThreshold: 1 },
-        { name: "Project Insight", limit: 100, costThreshold: 1000  },
-        { name: "ABC SalesBots", limit: 100, costThreshold: 1000  },
-        { name: "Wilson Analytics", limit: Infinity, costThreshold: 1 }
-    ];
+function setStageFourLimits(): void {
+    corporationUpgrades["FocusWires"] = { limit: 100, costThreshold: 1000 };
+    corporationUpgrades["Neural Accelerators"] = { limit: 100, costThreshold: 1000 };
+    corporationUpgrades["Speech Processor Implants"] = { limit: 100, costThreshold: 1000 };
+    corporationUpgrades["Nuoptimal Nootropic Injector Implants"] = { limit: 100, costThreshold: 1000 };
+    corporationUpgrades["Smart Factories"] = { limit: 100, costThreshold: 1000 };
+    corporationUpgrades["Smart Storage"] = { limit: 100, costThreshold: 25 };
+    corporationUpgrades["DreamSense"] = { limit: 10, costThreshold: 1 };
+    corporationUpgrades["Project Insight"] = { limit: 100, costThreshold: 1000 };
+    corporationUpgrades["ABC SalesBots"] = { limit: 100, costThreshold: 1000 };
+    corporationUpgrades["Wilson Analytics"] = { limit: Infinity, costThreshold: 1 };
 
     divisionLimits = {};
     divisionLimits[IndustryType.Material] = { warehouseLimit: 2500, officeLimit: 18, adVertLimit: 10 };
-    divisionLimits[IndustryType.Product] = { warehouseLimit: 4000, officeLimit: 240,  adVertLimit: Infinity };
+    divisionLimits[IndustryType.Product] = { warehouseLimit: 4000, officeLimit: 240, adVertLimit: Infinity };
 }
 
 /**
  * Set the upgrade limits for a stage 5 corporation.
  */
-function setStageFiveLimits(ns : NS) : void {
-    corpUpgrades = [
-        { name: "FocusWires", limit: Infinity, costThreshold: 1000 },
-        { name: "Neural Accelerators", limit: Infinity, costThreshold: 1000 },
-        { name: "Speech Processor Implants", limit: Infinity, costThreshold: 1000 },
-        { name: "Nuoptimal Nootropic Injector Implants", limit: Infinity, costThreshold: 1000 },
-        { name: "Smart Factories", limit: Infinity, costThreshold: 1000  },
-        { name: "Smart Storage", limit: 250, costThreshold: 25 },
-        { name: "DreamSense", limit: 10, costThreshold: 1 },
-        { name: "Project Insight", limit: Infinity, costThreshold: 1000  },
-        { name: "ABC SalesBots", limit: Infinity, costThreshold: 1000  },
-        { name: "Wilson Analytics", limit: Infinity, costThreshold: 1 }
-    ];
+function setStageFiveLimits(ns: NS): void {
+    corporationUpgrades["FocusWires"] = { limit: Infinity, costThreshold: 1000 };
+    corporationUpgrades["Neural Accelerators"] = { limit: Infinity, costThreshold: 1000 };
+    corporationUpgrades["Speech Processor Implants"] = { limit: Infinity, costThreshold: 1000 };
+    corporationUpgrades["Nuoptimal Nootropic Injector Implants"] = { limit: Infinity, costThreshold: 1000 };
+    corporationUpgrades["Smart Factories"] = { limit: Infinity, costThreshold: 1000 };
+    corporationUpgrades["Smart Storage"] = { limit: 1000, costThreshold: 25 };
+    corporationUpgrades["DreamSense"] = { limit: 10, costThreshold: 1 };
+    corporationUpgrades["Project Insight"] = { limit: Infinity, costThreshold: 1000 };
+    corporationUpgrades["ABC SalesBots"] = { limit: Infinity, costThreshold: 1000 };
+    corporationUpgrades["Wilson Analytics"] = { limit: Infinity, costThreshold: 1 };
 
     divisionLimits = {};
     divisionLimits[IndustryType.Material] = { warehouseLimit: 5000, officeLimit: 18, adVertLimit: 10 };
-    divisionLimits[IndustryType.Product] = { warehouseLimit: 5000, officeLimit: 300,  adVertLimit: Infinity };
+    divisionLimits[IndustryType.Product] = { warehouseLimit: 5000, officeLimit: 300, adVertLimit: Infinity };
 
     if (!ns.corporation.getCorporation().public) {
-        ns.corporation.goPublic(0)
+        ns.corporation.goPublic(0);
     }
 
     ns.corporation.issueDividends(0.5);
@@ -386,14 +388,14 @@ function setStageFiveLimits(ns : NS) : void {
  * ------------------------
  * > INDUSTRY TYPE GETTER FUCTION
  * ------------------------
-*/
+ */
 
 /**
  * Get the type of industry for the name provided.
  * @param industry Name of industry.
  * @returns Type of industry (product/material).
  */
-function getIndustryType(industry : string) : IndustryType {
+function getIndustryType(industry: string): IndustryType {
     if (PRODUCT_INDUSTRIES.includes(industry)) {
         return IndustryType.Product;
     } else {
@@ -405,7 +407,7 @@ function getIndustryType(industry : string) : IndustryType {
  * ------------------------
  * > GET DIVISION FROM INDUSTRY / INDUSTRY FROM DIVISION FUNCTIONS
  * ------------------------
-*/
+ */
 
 /**
  * Get the name of the division for the given industry type.
@@ -413,8 +415,8 @@ function getIndustryType(industry : string) : IndustryType {
  * @param industry Name of industry.
  * @returns Name of the division for this industry,
  */
-function getDivisionNameOfIndustry(ns : NS, industry : string) : string {
-    const divisionName = ns.corporation.getCorporation().divisions.find(x => x.type === industry)?.name;
+function getDivisionNameOfIndustry(ns: NS, industry: string): string {
+    const divisionName = ns.corporation.getCorporation().divisions.find((x) => x.type === industry)?.name;
     if (!divisionName) {
         logger.log(`Unable to find division for industry ${industry}`, { type: MessageType.error });
         throw new Error(`Unable to find division for industry ${industry}`);
@@ -429,7 +431,7 @@ function getDivisionNameOfIndustry(ns : NS, industry : string) : string {
  * @param division Name of division.
  * @returns Name of the industry type for this division name,
  */
-function getIndustryFromDivisionName(ns : NS, division : string) : string {
+function getIndustryFromDivisionName(ns: NS, division: string): string {
     return ns.corporation.getDivision(division).type;
 }
 
@@ -437,14 +439,14 @@ function getIndustryFromDivisionName(ns : NS, division : string) : string {
  * ------------------------
  * > DIVISION LIMIT GETTER FUNCTIONS
  * ------------------------
-*/
+ */
 
 /**
  * Get the set warehouse capacity limit for the given industry.
  * @param industry Name of industry.
  * @returns Warehouse capacity limit.
  */
-function getWarehouseLimit(industry : string) : number {
+function getWarehouseLimit(industry: string): number {
     return divisionLimits[getIndustryType(industry)].warehouseLimit;
 }
 
@@ -453,7 +455,7 @@ function getWarehouseLimit(industry : string) : number {
  * @param industry Name of industry.
  * @returns Office size limit.
  */
-function getOfficeLimit(industry : string) : number {
+function getOfficeLimit(industry: string): number {
     return divisionLimits[getIndustryType(industry)].officeLimit;
 }
 
@@ -462,7 +464,7 @@ function getOfficeLimit(industry : string) : number {
  * @param industry Name of industry.
  * @returns AdVert level limit.
  */
-function getAdVertLimit(industry : string) : number {
+function getAdVertLimit(industry: string): number {
     return divisionLimits[getIndustryType(industry)].adVertLimit;
 }
 
@@ -470,7 +472,7 @@ function getAdVertLimit(industry : string) : number {
  * ------------------------
  * > EXPANSION TEST FUNCTIONS
  * ------------------------
-*/
+ */
 
 /**
  * Test if the corporation has already expanded to the specified industry.
@@ -478,8 +480,8 @@ function getAdVertLimit(industry : string) : number {
  * @param industry Name of the industry to expand to.
  * @returns True if expansion has already been done; false otherwise.
  */
-function hasExpandedToIndustry(ns : NS, industry : string) : boolean {
-    const division = ns.corporation.getCorporation().divisions.find(x => x.type === industry);
+function hasExpandedToIndustry(ns: NS, industry: string): boolean {
+    const division = ns.corporation.getCorporation().divisions.find((x) => x.type === industry);
     return division !== undefined;
 }
 
@@ -490,7 +492,7 @@ function hasExpandedToIndustry(ns : NS, industry : string) : boolean {
  * @param city Name of a city.
  * @returns True if expansion has already been done; false otherwise.
  */
-function hasExpandedDivisionToCity(ns : NS, division : string, city : string) : boolean {
+function hasExpandedDivisionToCity(ns: NS, division: string, city: string): boolean {
     return ns.corporation.getDivision(division).cities.includes(city);
 }
 
@@ -501,7 +503,7 @@ function hasExpandedDivisionToCity(ns : NS, division : string, city : string) : 
  * @param city Name of a city.
  * @returns True if an office exists; false otherwise.
  */
-function hasOfficeForDivisionInCity(ns : NS, division : string, city : string) : boolean {
+function hasOfficeForDivisionInCity(ns: NS, division: string, city: string): boolean {
     const office = ns.corporation.getOffice(division, city);
     return office !== undefined;
 }
@@ -513,7 +515,7 @@ function hasOfficeForDivisionInCity(ns : NS, division : string, city : string) :
  * @param city Name of a city.
  * @returns True if a warehouse exists; false otherwise.
  */
-function hasWarehouseForDivisionInCity(ns : NS, division : string, city : string) : boolean {
+function hasWarehouseForDivisionInCity(ns: NS, division: string, city: string): boolean {
     return ns.corporation.hasWarehouse(division, city);
 }
 
@@ -521,17 +523,17 @@ function hasWarehouseForDivisionInCity(ns : NS, division : string, city : string
  * ------------------------
  * > INVESTMENT OFFER PROCESSING FUNCTION
  * ------------------------
-*/
+ */
 
 /**
  * Process the next available investment offer and whether or not it should be taken.
  * @param ns NS object parameter.
  */
-function processInvestmentOffers(ns : NS) : void {
+function processInvestmentOffers(ns: NS): void {
     const offer = ns.corporation.getInvestmentOffer();
     if (offer.funds > investmentAcceptanceThresholds[offer.round - 1]) {
         ns.corporation.acceptInvestmentOffer();
-        logger.log(`Accepted investment offer for ${ns.nFormat(offer.funds, '$0.00a')}`, { type: MessageType.success });
+        logger.log(`Accepted investment offer for ${ns.nFormat(offer.funds, "$0.00a")}`, { type: MessageType.success });
     }
 }
 
@@ -539,13 +541,13 @@ function processInvestmentOffers(ns : NS) : void {
  * ------------------------
  * > CORPORATION STAGE PROCESSING FUNCTION
  * ------------------------
-*/
+ */
 
 /**
  * Process the current corporation stage.
  * @param ns NS object parameter.
  */
-function processCorporationStage(ns : NS) : void {
+function processCorporationStage(ns: NS): void {
     ns.print("hello??");
     setCorporationStage(ns);
 }
@@ -554,17 +556,19 @@ function processCorporationStage(ns : NS) : void {
  * ------------------------
  * > INDUSTRY EXPANSION FUNCTIONS
  * ------------------------
-*/
+ */
 
 /**
  * Process attempting to expand to another industry.
  * @param ns NS object parameter.
  */
-function processIndustryExpansions(ns : NS) : void {
-    industries.filter(x => !hasExpandedToIndustry(ns, x)).forEach((industry) => {
-        logger.log(`Trying to expand to industry ${industry}`, { type: MessageType.debugHigh });
-        tryExpandToIndustry(ns, industry);
-    });
+function processIndustryExpansions(ns: NS): void {
+    industries
+        .filter((x) => !hasExpandedToIndustry(ns, x))
+        .forEach((industry) => {
+            logger.log(`Trying to expand to industry ${industry}`, { type: MessageType.debugHigh });
+            tryExpandToIndustry(ns, industry);
+        });
 }
 
 /**
@@ -572,10 +576,10 @@ function processIndustryExpansions(ns : NS) : void {
  * @param ns NS object parameter.
  * @param industry Name of industry.
  */
-function tryExpandToIndustry(ns : NS, industry : string) : void {
+function tryExpandToIndustry(ns: NS, industry: string): void {
     if (canExpandToIndustry(ns, industry)) {
         logger.log(`Able to expand to industry ${industry}`, { type: MessageType.debugLow });
-        doExpandToIndustry(ns, industry)
+        doExpandToIndustry(ns, industry);
     } else {
         logger.log(`Unable to expand to industry ${industry}`, { type: MessageType.debugLow });
     }
@@ -587,7 +591,7 @@ function tryExpandToIndustry(ns : NS, industry : string) : void {
  * @param industry Name of industry.
  * @returns True if expansion is possible; false otherwise.
  */
-function canExpandToIndustry(ns : NS, industry : string) : boolean {
+function canExpandToIndustry(ns: NS, industry: string): boolean {
     if (ns.corporation.getCorporation().divisions.length === 0) {
         logger.log(`This will be the corporation first industry - allow expansion`, { type: MessageType.debugHigh });
         return true;
@@ -607,7 +611,7 @@ function canExpandToIndustry(ns : NS, industry : string) : boolean {
  * @param industry Name of industry.
  * @returns True if expansion is affordable; false otherwise.
  */
-function canAffordIndustryExpansion(ns : NS, industry : string) : boolean {
+function canAffordIndustryExpansion(ns: NS, industry: string): boolean {
     return ns.corporation.getCorporation().funds >= ns.corporation.getExpandIndustryCost(industry) * 10;
 }
 
@@ -616,7 +620,7 @@ function canAffordIndustryExpansion(ns : NS, industry : string) : boolean {
  * @param ns NS object parameter.
  * @param industry Name of industry.
  */
-function doExpandToIndustry(ns : NS, industry : string) : void {
+function doExpandToIndustry(ns: NS, industry: string): void {
     ns.corporation.expandIndustry(industry, industry);
 
     if (hasExpandedToIndustry(ns, industry)) {
@@ -630,17 +634,19 @@ function doExpandToIndustry(ns : NS, industry : string) : void {
  * ------------------------
  * > CITY EXPANSION PROCESSING FUNCTIONS
  * ------------------------
-*/
+ */
 
 /**
  * Process attempting to expand industries to cities.
  * @param ns NS object parameter.
  */
-function processCityExpansions(ns : NS) : void {
-    industries.filter(x => hasExpandedToIndustry(ns, x)).forEach((industry) => {
-        const division = getDivisionNameOfIndustry(ns, industry);
-        processCityExpansionsForDivision(ns, division);
-    });
+function processCityExpansions(ns: NS): void {
+    industries
+        .filter((x) => hasExpandedToIndustry(ns, x))
+        .forEach((industry) => {
+            const division = getDivisionNameOfIndustry(ns, industry);
+            processCityExpansionsForDivision(ns, division);
+        });
 }
 
 /**
@@ -648,8 +654,8 @@ function processCityExpansions(ns : NS) : void {
  * @param ns NS object parameter.
  * @param division Name of division.
  */
-function processCityExpansionsForDivision(ns : NS, division : string) : void {
-    CITIES.filter(x => !hasExpandedDivisionToCity(ns, division, x)).forEach((city) => {
+function processCityExpansionsForDivision(ns: NS, division: string): void {
+    CITIES.filter((x) => !hasExpandedDivisionToCity(ns, division, x)).forEach((city) => {
         logger.log(`Trying to expand ${division} to ${city}`, { type: MessageType.debugHigh });
         tryExpandDivisionToCity(ns, division, city);
     });
@@ -661,7 +667,7 @@ function processCityExpansionsForDivision(ns : NS, division : string) : void {
  * @param division Name of division.
  * @param city Name of city.
  */
-function tryExpandDivisionToCity(ns : NS, division : string, city : string) : void {
+function tryExpandDivisionToCity(ns: NS, division: string, city: string): void {
     if (canExpandDivisionToCity(ns, division, city)) {
         doExpandDivisionToCity(ns, division, city);
     } else {
@@ -676,7 +682,7 @@ function tryExpandDivisionToCity(ns : NS, division : string, city : string) : vo
  * @param city Name of city.
  * @returns True if expansion is possible; false otherwise.
  */
-function canExpandDivisionToCity(ns : NS, division : string, city : string) : boolean {
+function canExpandDivisionToCity(ns: NS, division: string, city: string): boolean {
     if (hasExpandedDivisionToCity(ns, division, city)) {
         logger.log(`${division} has already expanded to ${city} - deny expansion`, { type: MessageType.debugHigh });
         return false;
@@ -695,7 +701,7 @@ function canExpandDivisionToCity(ns : NS, division : string, city : string) : bo
  * @param ns NS object parameter.
  * @returns True if the expansion is affordable; false otherwise.
  */
-function canAffordCityExpansion(ns : NS) : boolean {
+function canAffordCityExpansion(ns: NS): boolean {
     return ns.corporation.getCorporation().funds >= ns.corporation.getExpandCityCost();
 }
 
@@ -705,7 +711,7 @@ function canAffordCityExpansion(ns : NS) : boolean {
  * @param division Name of division.
  * @param city Name of city.
  */
-function doExpandDivisionToCity(ns : NS, division : string, city : string) : void {
+function doExpandDivisionToCity(ns: NS, division: string, city: string): void {
     ns.corporation.expandCity(division, city);
 
     if (hasExpandedDivisionToCity(ns, division, city)) {
@@ -719,18 +725,20 @@ function doExpandDivisionToCity(ns : NS, division : string, city : string) : voi
  * ------------------------
  * > WAREHOUSE UPGRADE PROCESSING FUNCTIONS
  * ------------------------
-*/
+ */
 
 /**
  * Process attempting to upgrade warehouses in cities.
  * @param ns NS object parameter.
  */
-function processWarehouseUpgrades(ns : NS) : void {
+function processWarehouseUpgrades(ns: NS): void {
     if (!hasWarehouseAPI) return;
-    industries.filter(x => hasExpandedToIndustry(ns, x)).forEach((industry) => {
-        const division = getDivisionNameOfIndustry(ns, industry);
-        processWarehouseUpgradesForDivision(ns, division)
-    });
+    industries
+        .filter((x) => hasExpandedToIndustry(ns, x))
+        .forEach((industry) => {
+            const division = getDivisionNameOfIndustry(ns, industry);
+            processWarehouseUpgradesForDivision(ns, division);
+        });
 }
 
 /**
@@ -738,8 +746,8 @@ function processWarehouseUpgrades(ns : NS) : void {
  * @param ns NS object parameter.
  * @param division Name of division.
  */
-function processWarehouseUpgradesForDivision(ns : NS, division : string) : void {
-    CITIES.filter(x => hasExpandedDivisionToCity(ns, division, x)).forEach((city) => {
+function processWarehouseUpgradesForDivision(ns: NS, division: string): void {
+    CITIES.filter((x) => hasExpandedDivisionToCity(ns, division, x)).forEach((city) => {
         logger.log(`Trying to purchase warehouse upgrades for ${division} in ${city}`, { type: MessageType.debugHigh });
         processWarehouseUpgradesInCityForDivision(ns, division, city);
     });
@@ -751,7 +759,7 @@ function processWarehouseUpgradesForDivision(ns : NS, division : string) : void 
  * @param division Name of division.
  * @param city Name of city.
  */
-function processWarehouseUpgradesInCityForDivision(ns : NS, division : string, city : string) : void {
+function processWarehouseUpgradesInCityForDivision(ns: NS, division: string, city: string): void {
     if (!hasWarehouseForDivisionInCity(ns, division, city)) {
         logger.log(`${division} has no warehouse in ${city}`, { type: MessageType.debugHigh });
         const warehousePurchased = tryPurchaseWarehouseInCity(ns, division, city);
@@ -767,7 +775,7 @@ function processWarehouseUpgradesInCityForDivision(ns : NS, division : string, c
  * @param division Name of division.
  * @param city Name of city.
  */
-function tryPurchaseWarehouseInCity(ns : NS, division : string, city : string) : boolean {
+function tryPurchaseWarehouseInCity(ns: NS, division: string, city: string): boolean {
     if (canPurchaseWarehouseInCity(ns, division, city)) {
         doPurchaseWarehouseInCity(ns, division, city);
         return true;
@@ -784,7 +792,7 @@ function tryPurchaseWarehouseInCity(ns : NS, division : string, city : string) :
  * @param city Name of city.
  * @returns True if purchase is possible; false otherwise.
  */
-function canPurchaseWarehouseInCity(ns : NS, division : string, city : string) : boolean {
+function canPurchaseWarehouseInCity(ns: NS, division: string, city: string): boolean {
     if (hasWarehouseForDivisionInCity(ns, division, city)) {
         logger.log(`${division} already has a warehouse in ${city} - deny expansion`, { type: MessageType.debugHigh });
         return false;
@@ -803,7 +811,7 @@ function canPurchaseWarehouseInCity(ns : NS, division : string, city : string) :
  * @param ns NS object parameter.
  * @returns True if the warehouse is affordable; false otherwise.
  */
-function canAffordWarehouse(ns : NS) : boolean {
+function canAffordWarehouse(ns: NS): boolean {
     return ns.corporation.getCorporation().funds >= ns.corporation.getPurchaseWarehouseCost();
 }
 
@@ -813,7 +821,7 @@ function canAffordWarehouse(ns : NS) : boolean {
  * @param division Name of division.
  * @param city Name of city.
  */
-function doPurchaseWarehouseInCity(ns : NS, division : string, city : string) : void {
+function doPurchaseWarehouseInCity(ns: NS, division: string, city: string): void {
     ns.corporation.purchaseWarehouse(division, city);
 
     if (hasWarehouseForDivisionInCity(ns, division, city)) {
@@ -829,7 +837,7 @@ function doPurchaseWarehouseInCity(ns : NS, division : string, city : string) : 
  * @param division Name of division.
  * @param city Name of city.
  */
-function doWarehouseUpgradeForDivisionInCity(ns : NS, division : string, city : string) : void {
+function doWarehouseUpgradeForDivisionInCity(ns: NS, division: string, city: string): void {
     if (canUpgradeWarehouseSize(ns, division, city)) {
         ns.corporation.upgradeWarehouse(division, city);
         const warehouse = ns.corporation.getWarehouse(division, city);
@@ -844,7 +852,7 @@ function doWarehouseUpgradeForDivisionInCity(ns : NS, division : string, city : 
  * @param city Name of city.
  * @returns True if upgrade is possible; false otherwise.
  */
-function canUpgradeWarehouseSize(ns : NS, division : string, city : string) : boolean {
+function canUpgradeWarehouseSize(ns: NS, division: string, city: string): boolean {
     if (atWarehouseSizeLimit(ns, division, city)) {
         logger.log(`Warehouse in ${division} > ${city} is already at capacity limit - deny upgrade`, { type: MessageType.debugHigh });
         return false;
@@ -865,12 +873,12 @@ function canUpgradeWarehouseSize(ns : NS, division : string, city : string) : bo
  * @param city Name of city.
  * @returns True if the warehouse is at the capacity limit; false otherwise.
  */
-function atWarehouseSizeLimit(ns : NS, division : string, city : string) : boolean {
+function atWarehouseSizeLimit(ns: NS, division: string, city: string): boolean {
     const warehouse = ns.corporation.getWarehouse(division, city);
-    const sizeMultiplier = 1 + (ns.corporation.getUpgradeLevel("Smart Storage") * 0.1);
+    const sizeMultiplier = 1 + ns.corporation.getUpgradeLevel("Smart Storage") * 0.1;
     const industry = getIndustryFromDivisionName(ns, division);
     const limit = getWarehouseLimit(industry);
-    return (warehouse.size / sizeMultiplier) >= limit;
+    return warehouse.size / sizeMultiplier >= limit;
 }
 
 /**
@@ -878,7 +886,7 @@ function atWarehouseSizeLimit(ns : NS, division : string, city : string) : boole
  * @param ns NS object parameter.
  * @returns True if the upgrade is affordable; false otherwise.
  */
-function canAffordWarehouseSizeUpgrade(ns : NS, division : string, city : string) : boolean {
+function canAffordWarehouseSizeUpgrade(ns: NS, division: string, city: string): boolean {
     return ns.corporation.getCorporation().funds >= ns.corporation.getUpgradeWarehouseCost(division, city);
 }
 
@@ -886,13 +894,13 @@ function canAffordWarehouseSizeUpgrade(ns : NS, division : string, city : string
  * ------------------------
  * > CORPORATION UPGRADE PROCESSING FUNCTIONS
  * ------------------------
-*/
+ */
 
 /**
  * Process attempting to purchasing corporation upgrades and unlocks.
  * @param ns NS object parameter.
  */
-function processCorporationUpgradesAndUnlocks(ns : NS) : void {
+function processCorporationUpgradesAndUnlocks(ns: NS): void {
     processCorporationUnlocks(ns);
     processCorporationUpgrades(ns);
 }
@@ -901,11 +909,13 @@ function processCorporationUpgradesAndUnlocks(ns : NS) : void {
  * Process attempting to purchasing corporation unlocks.
  * @param ns NS object parameter.
  */
-function processCorporationUnlocks(ns : NS) : void {
-    corpUnlocks.filter(x => canGetCorporationUnlock(ns, x)).forEach((unlock) => {
-        ns.corporation.unlockUpgrade(unlock.name);
-        logger.log(`Unlocked: ${unlock.name}`, { type: MessageType.success, sendToast: true });
-    });
+function processCorporationUnlocks(ns: NS): void {
+    Object.keys(corporationUnlocks)
+        .filter((unlock) => canGetCorporationUnlock(ns, unlock))
+        .forEach((unlock) => {
+            ns.corporation.unlockUpgrade(unlock);
+            logger.log(`Unlocked: ${unlock}`, { type: MessageType.success, sendToast: true });
+        });
 }
 
 /**
@@ -914,9 +924,9 @@ function processCorporationUnlocks(ns : NS) : void {
  * @param unlock Corporation unlock object.
  * @returns True if unlock can be gotten; false otherwise.
  */
-function canGetCorporationUnlock(ns : NS, unlock : ICorpUnlock) : boolean {
-    if (ns.corporation.hasUnlockUpgrade(unlock.name)) {
-        logger.log(`Corporation already has unlock ${unlock.name} - deny unlock`, { type: MessageType.debugHigh });
+function canGetCorporationUnlock(ns: NS, unlock: string): boolean {
+    if (ns.corporation.hasUnlockUpgrade(unlock)) {
+        logger.log(`Corporation already has unlock ${unlock} - deny unlock`, { type: MessageType.debugHigh });
         return false;
     }
 
@@ -934,25 +944,28 @@ function canGetCorporationUnlock(ns : NS, unlock : ICorpUnlock) : boolean {
  * @param unlock Corporation unlock object.
  * @returns True if the unlock is affordable; false otherwise.
  */
-function canAffordUnlock(ns : NS, unlock : ICorpUnlock) : boolean {
-    return ns.corporation.getCorporation().funds > ns.corporation.getUnlockUpgradeCost(unlock.name) * unlock.costThreshold;
+function canAffordUnlock(ns: NS, unlock: string): boolean {
+    const trueCost = ns.corporation.getUnlockUpgradeCost(unlock) * corporationUnlocks[unlock];
+    return ns.corporation.getCorporation().funds > trueCost;
 }
 
 /**
  * Process attempting to purchasing corporation upgrades.
  * @param ns NS object parameter.
  */
-function processCorporationUpgrades(ns : NS) : void {
+function processCorporationUpgrades(ns: NS): void {
     let upgradePurchased = false;
 
     do {
         upgradePurchased = false;
-        corpUpgrades.filter(x => canGetCorporationUpgrade(ns, x)).forEach(upgrade => {
-            const upgradeLevel = ns.corporation.getUpgradeLevel(upgrade.name);
-            ns.corporation.levelUpgrade(upgrade.name);
-            upgradePurchased = true;
-            logger.log(`Leveled upgrade: ${upgrade.name} (${upgradeLevel} --> ${upgradeLevel + 1})`, { type: MessageType.info });
-        });
+        Object.keys(corporationUpgrades)
+            .filter((upgrade) => canGetCorporationUpgrade(ns, upgrade))
+            .forEach((upgrade) => {
+                const upgradeLevel = ns.corporation.getUpgradeLevel(upgrade);
+                ns.corporation.levelUpgrade(upgrade);
+                upgradePurchased = true;
+                logger.log(`Leveled upgrade: ${upgrade} (${upgradeLevel} --> ${upgradeLevel + 1})`, { type: MessageType.info });
+            });
     } while (upgradePurchased);
 }
 
@@ -962,13 +975,13 @@ function processCorporationUpgrades(ns : NS) : void {
  * @param upgrade Corporation upgrade object.
  * @returns True if upgrade can be gotten; false otherwise.
  */
-function canGetCorporationUpgrade(ns : NS, upgrade : ICorpUpgrade) : boolean {
-    if (upgrade.name === "Wilson Analytics") {
+function canGetCorporationUpgrade(ns: NS, upgrade: string): boolean {
+    if (upgrade === "Wilson Analytics") {
         return false;
     }
 
-    const upgradeLevel = ns.corporation.getUpgradeLevel(upgrade.name);
-    if (upgradeLevel >= upgrade.limit ) {
+    const upgradeLevel = ns.corporation.getUpgradeLevel(upgrade);
+    if (upgradeLevel >= corporationUpgrades[upgrade].limit) {
         logger.log(`Corporation at upgrade level limit - deny upgrade`, { type: MessageType.debugHigh });
         return false;
     }
@@ -987,15 +1000,16 @@ function canGetCorporationUpgrade(ns : NS, upgrade : ICorpUpgrade) : boolean {
  * @param upgrade Corporation upgrade object.
  * @returns True if the upgrade is affordable; false otherwise.
  */
-function canAffordUpgrade(ns : NS, upgrade : ICorpUpgrade) : boolean {
-    return ns.corporation.getCorporation().funds > ns.corporation.getUpgradeLevelCost(upgrade.name) * upgrade.costThreshold;
+function canAffordUpgrade(ns: NS, upgrade: string): boolean {
+    const trueCost = ns.corporation.getUpgradeLevelCost(upgrade) * corporationUpgrades[upgrade].costThreshold;
+    return ns.corporation.getCorporation().funds > trueCost;
 }
 
 /*
  * ------------------------
  * > DIVISION RESEARCH UPGRADE PROCESSING FUNCTIONS
  * ------------------------
-*/
+ */
 
 /*
 
@@ -1049,18 +1063,20 @@ function canAffordResearch(ns : NS, division : string, research : string) : bool
  * ------------------------
  * > OFFICE UPGRADE PROCESSING FUNCTIONS
  * ------------------------
-*/
+ */
 
 /**
  * Process attempting to upgrade warehouses in cities.
  * @param ns NS object parameter.
  */
-function processOfficeUpgrades(ns : NS) : void {
+function processOfficeUpgrades(ns: NS): void {
     if (!hasOfficeAPI) return;
-    industries.filter(x => hasExpandedToIndustry(ns, x)).forEach((industry) => {
-        const division = getDivisionNameOfIndustry(ns, industry);
-        processOfficeUpgradesForDivision(ns, division)
-    });
+    industries
+        .filter((x) => hasExpandedToIndustry(ns, x))
+        .forEach((industry) => {
+            const division = getDivisionNameOfIndustry(ns, industry);
+            processOfficeUpgradesForDivision(ns, division);
+        });
 }
 
 /**
@@ -1068,8 +1084,8 @@ function processOfficeUpgrades(ns : NS) : void {
  * @param ns NS object parameter.
  * @param division Name of division.
  */
-function processOfficeUpgradesForDivision(ns : NS, division : string) : void {
-    CITIES.filter(x => hasExpandedDivisionToCity(ns, division, x)).forEach((city) => {
+function processOfficeUpgradesForDivision(ns: NS, division: string): void {
+    CITIES.filter((x) => hasExpandedDivisionToCity(ns, division, x)).forEach((city) => {
         logger.log(`Trying to purchase office upgrades for ${division} in ${city}`, { type: MessageType.debugHigh });
         processOfficeUpgradesInCityForDivision(ns, division, city);
     });
@@ -1081,7 +1097,7 @@ function processOfficeUpgradesForDivision(ns : NS, division : string) : void {
  * @param division Name of division.
  * @param city Name of city.
  */
-function processOfficeUpgradesInCityForDivision(ns : NS, division : string, city : string) : void {
+function processOfficeUpgradesInCityForDivision(ns: NS, division: string, city: string): void {
     if (!hasOfficeForDivisionInCity(ns, division, city)) {
         logger.log(`${division} has no office in ${city}`, { type: MessageType.debugHigh });
         return;
@@ -1096,7 +1112,7 @@ function processOfficeUpgradesInCityForDivision(ns : NS, division : string, city
  * @param division Name of division.
  * @param city Name of city.
  */
-function doUpgradeOfficeInCityForDivision(ns : NS, division : string, city : string) : void {
+function doUpgradeOfficeInCityForDivision(ns: NS, division: string, city: string): void {
     if (canUpgradeOfficeSize(ns, division, city)) {
         ns.corporation.upgradeOfficeSize(division, city, 3);
         const office = ns.corporation.getOffice(division, city);
@@ -1111,7 +1127,7 @@ function doUpgradeOfficeInCityForDivision(ns : NS, division : string, city : str
  * @param city Name of city.
  * @returns True if upgrade is possible; false otherwise.
  */
-function canUpgradeOfficeSize(ns : NS, division : string, city : string) : boolean {
+function canUpgradeOfficeSize(ns: NS, division: string, city: string): boolean {
     if (atOfficeSizeLimit(ns, division, city)) {
         logger.log(`Office in ${division} > ${city} is already at capacity limit - deny upgrade`, { type: MessageType.debugHigh });
         return false;
@@ -1132,10 +1148,10 @@ function canUpgradeOfficeSize(ns : NS, division : string, city : string) : boole
  * @param city Name of city.
  * @returns True if the office is at the capacity limit; false otherwise.
  */
-function atOfficeSizeLimit(ns : NS, division : string, city : string) : boolean {
+function atOfficeSizeLimit(ns: NS, division: string, city: string): boolean {
     const office = ns.corporation.getOffice(division, city);
     const industry = getIndustryFromDivisionName(ns, division);
-    const limit = (city === mainProductionCity && getIndustryType(industry) === IndustryType.Product) ? getOfficeLimit(industry) + 60 : getOfficeLimit(industry);
+    const limit = city === mainProductionCity && getIndustryType(industry) === IndustryType.Product ? getOfficeLimit(industry) + 60 : getOfficeLimit(industry);
     return office.size >= limit;
 }
 
@@ -1144,7 +1160,7 @@ function atOfficeSizeLimit(ns : NS, division : string, city : string) : boolean 
  * @param ns NS object parameter.
  * @returns True if the upgrade is affordable; false otherwise.
  */
-function canAffordOfficeSizeUpgrade(ns : NS, division : string, city : string, size : number) : boolean {
+function canAffordOfficeSizeUpgrade(ns: NS, division: string, city: string, size: number): boolean {
     return ns.corporation.getCorporation().funds >= ns.corporation.getOfficeSizeUpgradeCost(division, city, size);
 }
 
@@ -1152,15 +1168,15 @@ function canAffordOfficeSizeUpgrade(ns : NS, division : string, city : string, s
  * ------------------------
  * > EMPLOYEE HIRING PROCESSING FUNCTIONS
  * ------------------------
-*/
+ */
 
 /**
  * Process attempting to hire employees for divisions in cities.
  * @param ns NS object parameter.
  */
-async function processHireEmployees(ns : NS) : Promise<void> {
+async function processHireEmployees(ns: NS): Promise<void> {
     if (!hasOfficeAPI) return;
-    for (const industry of industries.filter(x => hasExpandedToIndustry(ns, x))) {
+    for (const industry of industries.filter((x) => hasExpandedToIndustry(ns, x))) {
         const division = getDivisionNameOfIndustry(ns, industry);
         await processHireEmployeesForDivision(ns, division);
     }
@@ -1171,8 +1187,8 @@ async function processHireEmployees(ns : NS) : Promise<void> {
  * @param ns NS object parameter.
  * @param division Name of division.
  */
-async function processHireEmployeesForDivision(ns : NS, division : string) : Promise<void> {
-    for (const city of CITIES.filter(x => hasExpandedDivisionToCity(ns, division, x))) {
+async function processHireEmployeesForDivision(ns: NS, division: string): Promise<void> {
+    for (const city of CITIES.filter((x) => hasExpandedDivisionToCity(ns, division, x))) {
         logger.log(`Trying to hire employees for ${division} in ${city}`, { type: MessageType.debugHigh });
         await processHireEmployeesForDivisionInCity(ns, division, city);
     }
@@ -1184,7 +1200,7 @@ async function processHireEmployeesForDivision(ns : NS, division : string) : Pro
  * @param division Name of division.
  * @param city Name of city.
  */
-async function processHireEmployeesForDivisionInCity(ns : NS, division : string, city : string) : Promise<void> {
+async function processHireEmployeesForDivisionInCity(ns: NS, division: string, city: string): Promise<void> {
     doHireMaxEmployees(ns, division, city);
     await doAssignEmployeeJobs(ns, division, city);
 }
@@ -1195,7 +1211,7 @@ async function processHireEmployeesForDivisionInCity(ns : NS, division : string,
  * @param division Name of division.
  * @param city Name of city.
  */
-function doHireMaxEmployees(ns : NS, division : string, city : string) : void {
+function doHireMaxEmployees(ns: NS, division: string, city: string): void {
     let employeesHired = 0;
     while (canHireEmployee(ns, division, city)) {
         ns.corporation.hireEmployee(division, city);
@@ -1214,9 +1230,9 @@ function doHireMaxEmployees(ns : NS, division : string, city : string) : void {
  * @param city Name of city.
  * @returns True if hiring is possible; false otherwise.
  */
-function canHireEmployee(ns : NS, division : string, city : string) : boolean {
+function canHireEmployee(ns: NS, division: string, city: string): boolean {
     const office = ns.corporation.getOffice(division, city);
-    return office.employees.length < office.size
+    return office.employees.length < office.size;
 }
 
 /**
@@ -1225,14 +1241,13 @@ function canHireEmployee(ns : NS, division : string, city : string) : boolean {
  * @param division Name of division.
  * @param city Name of city.
  */
-async function doAssignEmployeeJobs(ns : NS, division : string, city : string) : Promise<void> {
+async function doAssignEmployeeJobs(ns: NS, division: string, city: string): Promise<void> {
     if (isProductionIndustryAndInMainCity(ns, division, city)) {
-        await doAssignEmployeeJobsForDivisionInCity(ns, division, city, [0,   0.5, 0.25, 0.25, 0,   0]);
+        await doAssignEmployeeJobsForDivisionInCity(ns, division, city, [0, 0.5, 0.25, 0.25, 0, 0]);
     } else {
-        await doAssignEmployeeJobsForDivisionInCity(ns, division, city, [0.2, 0.2, 0.2,  0.2,  0.2, 0]);
+        await doAssignEmployeeJobsForDivisionInCity(ns, division, city, [0.2, 0.2, 0.2, 0.2, 0.2, 0]);
     }
 }
-
 
 /**
  * Test if the provided division is a product-based industry and the city is the main production city.
@@ -1241,14 +1256,14 @@ async function doAssignEmployeeJobs(ns : NS, division : string, city : string) :
  * @param city Name of city.
  * @returns True if product industry and city is the main production city; false otherwise.
  */
-function isProductionIndustryAndInMainCity(ns : NS, division : string, city : string) : boolean {
+function isProductionIndustryAndInMainCity(ns: NS, division: string, city: string): boolean {
     const industry = getIndustryFromDivisionName(ns, division);
     const type = getIndustryType(industry);
     return type === IndustryType.Product && city === mainProductionCity;
 }
 
-async function doAssignEmployeeJobsForDivisionInCity(ns : NS, division : string, city : string, employeeRatio : number[]) : Promise<void> {
-    if (employeeRatio.reduce((a, b) => (a + b), 0) !== 1) {
+async function doAssignEmployeeJobsForDivisionInCity(ns: NS, division: string, city: string, employeeRatio: number[]): Promise<void> {
+    if (employeeRatio.reduce((a, b) => a + b, 0) !== 1) {
         logger.log(`Total ratio does not equal 1: ${employeeRatio}`, { type: MessageType.error });
         return;
     }
@@ -1256,9 +1271,9 @@ async function doAssignEmployeeJobsForDivisionInCity(ns : NS, division : string,
     const office = ns.corporation.getOffice(division, city);
     const employees = office.employees;
 
-    const employeesToAssign = employeeRatio.map(x => Math.floor(employees.length * x));
+    const employeesToAssign = employeeRatio.map((x) => Math.floor(employees.length * x));
 
-    let remainingEmployees = (employees.length - employeesToAssign.reduce((a, b) => (a + b), 0));
+    let remainingEmployees = employees.length - employeesToAssign.reduce((a, b) => a + b, 0);
 
     while (remainingEmployees > 0) {
         for (let i = 0; i < 6; i++) {
@@ -1271,26 +1286,26 @@ async function doAssignEmployeeJobsForDivisionInCity(ns : NS, division : string,
 
     //ns.print(`${division} > ${city} > ${employeesToAssign}`);
 
-    const assignedEmployees : string[][] = [
-        employees.filter(x => ns.corporation.getEmployee(division, city, x).pos === JobType.Operations),
-        employees.filter(x => ns.corporation.getEmployee(division, city, x).pos === JobType.Engineer),
-        employees.filter(x => ns.corporation.getEmployee(division, city, x).pos === JobType.Business),
-        employees.filter(x => ns.corporation.getEmployee(division, city, x).pos === JobType.Management),
-        employees.filter(x => ns.corporation.getEmployee(division, city, x).pos === JobType.ResearchAndDevelopment),
-        employees.filter(x => ns.corporation.getEmployee(division, city, x).pos === JobType.Training),
-        employees.filter(x => ns.corporation.getEmployee(division, city, x).pos === JobType.Unassigned)
+    const assignedEmployees: string[][] = [
+        employees.filter((x) => ns.corporation.getEmployee(division, city, x).pos === JobType.Operations),
+        employees.filter((x) => ns.corporation.getEmployee(division, city, x).pos === JobType.Engineer),
+        employees.filter((x) => ns.corporation.getEmployee(division, city, x).pos === JobType.Business),
+        employees.filter((x) => ns.corporation.getEmployee(division, city, x).pos === JobType.Management),
+        employees.filter((x) => ns.corporation.getEmployee(division, city, x).pos === JobType.ResearchAndDevelopment),
+        employees.filter((x) => ns.corporation.getEmployee(division, city, x).pos === JobType.Training),
+        employees.filter((x) => ns.corporation.getEmployee(division, city, x).pos === JobType.Unassigned)
     ];
 
     //ns.print(`${division} > ${city} > ${assignedEmployees.map(x => x.length)}`);
 
-    const availableEmployees : string[] = [
+    const availableEmployees: string[] = [
         ...assignedEmployees[0].slice(employeesToAssign[0]),
         ...assignedEmployees[1].slice(employeesToAssign[1]),
         ...assignedEmployees[2].slice(employeesToAssign[2]),
         ...assignedEmployees[3].slice(employeesToAssign[3]),
         ...assignedEmployees[4].slice(employeesToAssign[4]),
         ...assignedEmployees[5].slice(employeesToAssign[5]),
-        ...assignedEmployees[6],
+        ...assignedEmployees[6]
     ];
 
     const jobs = [JobType.Operations, JobType.Engineer, JobType.Business, JobType.Management, JobType.ResearchAndDevelopment, JobType.Training];
@@ -1300,7 +1315,7 @@ async function doAssignEmployeeJobsForDivisionInCity(ns : NS, division : string,
     for (let i = 0; i < jobs.length; i++) {
         const amountToAssign = Math.max(0, employeesToAssign[i] - assignedEmployees[i].length);
         for (let j = 0; j < amountToAssign; j++) {
-            const employee = availableEmployees.shift()
+            const employee = availableEmployees.shift();
             if (!employee) {
                 logger.log("Run out of employees to assign", { type: MessageType.debugLow });
                 return;
@@ -1314,40 +1329,49 @@ async function doAssignEmployeeJobsForDivisionInCity(ns : NS, division : string,
  * ------------------------
  * > WILSON AND ADVERT PURCHASING FUNCTIONS
  * ------------------------
-*/
+ */
 
 /**
  * Process attempting to purchase a Wilsons upgrade or an AdVert level for a division
  * @param ns NS object parameter.
  */
-function processPurchaseWilsonsAndAdVert(ns : NS) : void {
+function processPurchaseWilsonsAndAdVert(ns: NS): void {
     if (!hasOfficeAPI) return;
 
-    const allDivisionsAtLimits = industries.filter(x => hasExpandedToIndustry(ns, x)).every((industry) => {
-        const division = getDivisionNameOfIndustry(ns, industry);
-        return isDivisionAtOfficeAndWareHouseLimits(ns, division);
-    })
+    /*
+    const allDivisionsAtLimits = industries
+        .filter((x) => hasExpandedToIndustry(ns, x))
+        .every((industry) => {
+            const division = getDivisionNameOfIndustry(ns, industry);
+            return isDivisionAtOfficeAndWareHouseLimits(ns, division);
+        });
 
     if (!allDivisionsAtLimits) {
         logger.log(`Not all divisions at office and warehouse limits - deny Wilson and AdVert upgrades`, { type: MessageType.debugHigh });
         return;
     }
+    */
 
-    const wilsonsCost = ns.corporation.getUpgradeLevelCost("Wilson Analytics");
-    let adVertPurchased = false;
-    for (const industry of industries.filter(x => hasExpandedToIndustry(ns, x))) {
-        const division = getDivisionNameOfIndustry(ns, industry);
-        if (tryPurchaseAdVertForDivision(ns, division, wilsonsCost)) {
-            adVertPurchased = true;
-            break;
+    const attempts = ns.corporation.getCorporation().funds >= 1e12 ? 100 : 1;
+
+    for (let i = 0; i < attempts; i++) {
+        const wilsonsCost = ns.corporation.getUpgradeLevelCost("Wilson Analytics");
+        let adVertPurchased = false;
+        for (const industry of industries.filter((x) => hasExpandedToIndustry(ns, x))) {
+            const division = getDivisionNameOfIndustry(ns, industry);
+            if (tryPurchaseAdVertForDivision(ns, division, wilsonsCost)) {
+                adVertPurchased = true;
+                break;
+            }
+        }
+
+        if (!adVertPurchased) {
+            if (!tryPurchaseWilsons(ns)) {
+                break;
+            }
         }
     }
-
-    if (!adVertPurchased){
-        tryPurchaseWilsons(ns);
-    }
 }
-
 
 /**
  * Test if the division has met the office and warehouse limits first.
@@ -1355,7 +1379,7 @@ function processPurchaseWilsonsAndAdVert(ns : NS) : void {
  * @param division Name of division.
  * @returns True if all limits are met; false otherwise.
  */
- function isDivisionAtOfficeAndWareHouseLimits(ns : NS, division : string) : boolean {
+function isDivisionAtOfficeAndWareHouseLimits(ns: NS, division: string): boolean {
     return isDivisionAtOfficeAllLimits(ns, division) && isDivisionAtWarehouseAllLimits(ns, division);
 }
 
@@ -1365,7 +1389,7 @@ function processPurchaseWilsonsAndAdVert(ns : NS) : void {
  * @param division Name of division.
  * @returns True if all offices are at the limit; false otherwise.
  */
-function isDivisionAtOfficeAllLimits(ns : NS, division : string) : boolean {
+function isDivisionAtOfficeAllLimits(ns: NS, division: string): boolean {
     const industry = getIndustryFromDivisionName(ns, division);
     const officeLimit = getOfficeLimit(industry);
 
@@ -1382,7 +1406,7 @@ function isDivisionAtOfficeAllLimits(ns : NS, division : string) : boolean {
  * @param division Name of division.
  * @returns True if all warehouses are at the limit; false otherwise.
  */
-function isDivisionAtWarehouseAllLimits(ns : NS, division : string) : boolean {
+function isDivisionAtWarehouseAllLimits(ns: NS, division: string): boolean {
     const industry = getIndustryFromDivisionName(ns, division);
     const warehouseLimit = getWarehouseLimit(industry);
 
@@ -1397,9 +1421,12 @@ function isDivisionAtWarehouseAllLimits(ns : NS, division : string) : boolean {
  * Try to purchase a level of the Wilsons Analytics upgrade
  * @param ns NS object parameter.
  */
-function tryPurchaseWilsons(ns : NS) : void {
+function tryPurchaseWilsons(ns: NS): boolean {
     if (canPurchaseWilsons(ns)) {
         doPurchaseWilsons(ns);
+        return true;
+    } else {
+        return false;
     }
 }
 
@@ -1408,7 +1435,7 @@ function tryPurchaseWilsons(ns : NS) : void {
  * @param ns NS object parameter.
  * @returns True if upgrade is possible; false otherwise.
  */
-function canPurchaseWilsons(ns : NS) : boolean {
+function canPurchaseWilsons(ns: NS): boolean {
     if (atWilsonsLevelLimit(ns)) {
         logger.log(`Wilsons Analytics upgrade is already at the level limit - deny upgrade`, { type: MessageType.debugHigh });
         return false;
@@ -1427,10 +1454,9 @@ function canPurchaseWilsons(ns : NS) : boolean {
  * @param ns NS object parameter.
  * @returns True if the upgrade is at the level limit; false otherwise.
  */
- function atWilsonsLevelLimit(ns : NS) : boolean {
+function atWilsonsLevelLimit(ns: NS): boolean {
     const currentLevel = ns.corporation.getUpgradeLevel("Wilson Analytics");
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const limit = corpUpgrades.find(x => x.name === "Wilson Analytics")!.limit
+    const limit = corporationUpgrades["Wilson Analytics"].limit;
     return currentLevel >= limit;
 }
 
@@ -1439,7 +1465,7 @@ function canPurchaseWilsons(ns : NS) : boolean {
  * @param ns NS object parameter.
  * @returns True if the upgrade is affordable; false otherwise.
  */
-function canAffordWilsons(ns : NS) : boolean {
+function canAffordWilsons(ns: NS): boolean {
     const wilsonsCost = ns.corporation.getUpgradeLevelCost("Wilson Analytics");
     return ns.corporation.getCorporation().funds >= wilsonsCost;
 }
@@ -1448,7 +1474,7 @@ function canAffordWilsons(ns : NS) : boolean {
  * Purchase a Wilson's Analytics upgrade.
  * @param ns NS object parameter.
  */
-function doPurchaseWilsons(ns : NS) : void {
+function doPurchaseWilsons(ns: NS): void {
     const upgradeLevel = ns.corporation.getUpgradeLevel("Wilson Analytics");
     ns.corporation.levelUpgrade("Wilson Analytics");
     logger.log(`Leveled upgrade: Wilson Analytics (${upgradeLevel} --> ${upgradeLevel + 1})`, { type: MessageType.info });
@@ -1460,7 +1486,7 @@ function doPurchaseWilsons(ns : NS) : void {
  * @param division Name of division.
  * @param wilsonsCost Cost of the Wilsons Analytics upgrade.
  */
-function tryPurchaseAdVertForDivision(ns : NS, division : string, wilsonsCost : number) : boolean {
+function tryPurchaseAdVertForDivision(ns: NS, division: string, wilsonsCost: number): boolean {
     if (canPurchaseAdVert(ns, division, wilsonsCost)) {
         doPurchaseAdVert(ns, division);
         return true;
@@ -1476,7 +1502,7 @@ function tryPurchaseAdVertForDivision(ns : NS, division : string, wilsonsCost : 
  * @param wilsonsCost Cost of the Wilsons Analytics upgrade.
  * @returns True if purchase is possible; false otherwise.
  */
-function canPurchaseAdVert(ns : NS, division : string, wilsonsCost : number) : boolean {
+function canPurchaseAdVert(ns: NS, division: string, wilsonsCost: number): boolean {
     if (ns.corporation.getHireAdVertCost(division) >= wilsonsCost) {
         logger.log(`Wilsons Analytics is cheaper - deny upgrade`, { type: MessageType.debugHigh });
         return false;
@@ -1501,7 +1527,7 @@ function canPurchaseAdVert(ns : NS, division : string, wilsonsCost : number) : b
  * @param division Name of division.
  * @returns True if the upgrade is at the level limit; false otherwise.
  */
- function atAdVertLevelLimit(ns : NS, division : string) : boolean {
+function atAdVertLevelLimit(ns: NS, division: string): boolean {
     const industry = getIndustryFromDivisionName(ns, division);
     const limit = getAdVertLimit(industry);
     return ns.corporation.getHireAdVertCount(division) >= limit;
@@ -1512,9 +1538,9 @@ function canPurchaseAdVert(ns : NS, division : string, wilsonsCost : number) : b
  * @param ns NS object parameter.
  * @returns True if the upgrade is affordable; false otherwise.
  */
-function canAffordAdVertForDivision(ns : NS, division : string) : boolean {
+function canAffordAdVertForDivision(ns: NS, division: string): boolean {
     const adVertCost = ns.corporation.getHireAdVertCost(division);
-    return  ns.corporation.getCorporation().funds >= adVertCost;
+    return ns.corporation.getCorporation().funds >= adVertCost;
 }
 
 /**
@@ -1522,7 +1548,7 @@ function canAffordAdVertForDivision(ns : NS, division : string) : boolean {
  * @param ns NS object parameter.
  * @param division Name of division.
  */
-function doPurchaseAdVert(ns : NS, division : string) : void {
+function doPurchaseAdVert(ns: NS, division: string): void {
     ns.corporation.hireAdVert(division);
     logger.log(`Hired AdVert for ${division}`, { type: MessageType.info });
 }
@@ -1531,15 +1557,15 @@ function doPurchaseAdVert(ns : NS, division : string) : void {
  * ------------------------
  * > MATERIAL PURCHASING PROCESSING FUNCTIONS
  * ------------------------
-*/
+ */
 
 /**
  * Process attempting to buy materials for divisions in cities.
  * @param ns NS object parameter.
  */
-async function processMaterialPurchases(ns : NS) : Promise<void> {
+async function processMaterialPurchases(ns: NS): Promise<void> {
     if (!hasWarehouseAPI) return;
-    for (const industry of industries.filter(x => hasExpandedToIndustry(ns, x))) {
+    for (const industry of industries.filter((x) => hasExpandedToIndustry(ns, x))) {
         const division = getDivisionNameOfIndustry(ns, industry);
         await processMaterialPurchasesForDivision(ns, division);
     }
@@ -1550,11 +1576,8 @@ async function processMaterialPurchases(ns : NS) : Promise<void> {
  * @param ns NS object parameter.
  * @param division Name of division.
  */
-async function processMaterialPurchasesForDivision(ns : NS, division : string) : Promise<void> {
-    for (const city of CITIES.filter(x =>
-        hasExpandedDivisionToCity(ns, division, x) &&
-        hasWarehouseForDivisionInCity(ns, division, x)
-    )) {
+async function processMaterialPurchasesForDivision(ns: NS, division: string): Promise<void> {
+    for (const city of CITIES.filter((x) => hasExpandedDivisionToCity(ns, division, x) && hasWarehouseForDivisionInCity(ns, division, x))) {
         logger.log(`Trying to purchase materials for ${division} in ${city}`, { type: MessageType.debugHigh });
         await doMaterialPurchasesForDivisionInCity(ns, division, city);
     }
@@ -1566,7 +1589,7 @@ async function processMaterialPurchasesForDivision(ns : NS, division : string) :
  * @param division Name of division.
  * @param city Name of city.
  */
-async function doMaterialPurchasesForDivisionInCity(ns : NS, division : string, city : string) : Promise<void> {
+async function doMaterialPurchasesForDivisionInCity(ns: NS, division: string, city: string): Promise<void> {
     ns.corporation.setSmartSupply(division, city, true);
     const warehouse = ns.corporation.getWarehouse(division, city);
     const industry = getIndustryFromDivisionName(ns, division);
@@ -1592,8 +1615,8 @@ async function doMaterialPurchasesForDivisionInCity(ns : NS, division : string, 
  * @param city Name of city.
  * @param storage Storage object.
  */
-async function sellExcessMaterials(ns : NS, division : string, city : string, storage : Record<string, number>) : Promise<void> {
-    const toSell : { material : string; amount: number }[] = [];
+async function sellExcessMaterials(ns: NS, division: string, city: string, storage: Record<string, number>): Promise<void> {
+    const toSell: { material: string; amount: number }[] = [];
 
     for (const material of ["Hardware", "Robots", "AICores", "RealEstate"]) {
         ns.corporation.buyMaterial(division, city, material, 0);
@@ -1616,8 +1639,8 @@ async function sellExcessMaterials(ns : NS, division : string, city : string, st
  * @param city Name of city.
  * @param storage Storage object.
  */
-async function buyRequiredMaterials(ns : NS, division : string, city : string, storage : Record<string, number>) : Promise<void> {
-    const toBuy : { material : string; amount: number }[] = [];
+async function buyRequiredMaterials(ns: NS, division: string, city: string, storage: Record<string, number>): Promise<void> {
+    const toBuy: { material: string; amount: number }[] = [];
 
     for (const material of ["Hardware", "Robots", "AICores", "RealEstate"]) {
         ns.corporation.buyMaterial(division, city, material, 0);
@@ -1641,9 +1664,11 @@ async function buyRequiredMaterials(ns : NS, division : string, city : string, s
  * @param material Material to sell.
  * @param amount Amount to sell.
  */
-async function doSellMaterials(ns : NS, division : string, city : string, toSell : { material : string; amount: number }[]) : Promise<void> {
+async function doSellMaterials(ns: NS, division: string, city: string, toSell: { material: string; amount: number }[]): Promise<void> {
     // Wait for next pre-"SALE" state
-    while (ns.corporation.getCorporation().state !== "PRODUCTION") { await ns.asleep(10); }
+    while (ns.corporation.getCorporation().state !== "PRODUCTION") {
+        await ns.asleep(10);
+    }
 
     // Sell the required number of materials
     for (const item of toSell) {
@@ -1652,7 +1677,9 @@ async function doSellMaterials(ns : NS, division : string, city : string, toSell
     }
 
     // Wait for the next post-"SALE" state
-    while (ns.corporation.getCorporation().state !== "EXPORT") { await ns.asleep(10); }
+    while (ns.corporation.getCorporation().state !== "EXPORT") {
+        await ns.asleep(10);
+    }
 
     // Unset materials to sell
     for (const item of toSell) {
@@ -1668,18 +1695,22 @@ async function doSellMaterials(ns : NS, division : string, city : string, toSell
  * @param material Material to buy.
  * @param amount Amount to buy.
  */
-async function doBuyMaterials(ns : NS, division : string, city : string, toBuy : { material : string; amount: number }[]) : Promise<void> {
+async function doBuyMaterials(ns: NS, division: string, city: string, toBuy: { material: string; amount: number }[]): Promise<void> {
     // Wait for the next pre-"PURCHASE" state
-    while (ns.corporation.getCorporation().state !== "START") { await ns.asleep(10); }
+    while (ns.corporation.getCorporation().state !== "START") {
+        await ns.asleep(10);
+    }
 
     // Buy the required number of materials
     for (const item of toBuy) {
-        ns.corporation.buyMaterial(division, city, item.material, (item.amount / 10));
+        ns.corporation.buyMaterial(division, city, item.material, item.amount / 10);
         logger.log(`Buying ${item.amount.toFixed(0)} x ${item.material} in ${division} > ${city}`, { type: MessageType.info });
     }
 
     // Wait for the next post-"PURCHASE" state
-    while (ns.corporation.getCorporation().state !== "PRODUCTION") { await ns.asleep(10); }
+    while (ns.corporation.getCorporation().state !== "PRODUCTION") {
+        await ns.asleep(10);
+    }
 
     // Unset materials to buy
     for (const item of toBuy) {
@@ -1691,15 +1722,15 @@ async function doBuyMaterials(ns : NS, division : string, city : string, toBuy :
  * ------------------------
  * > PRODUCT PRODUCTION PROCESSING FUNCTIONS
  * ------------------------
-*/
+ */
 
 /**
  * Process attempting to make products in divisions.
  * @param ns NS object parameter.
  */
-async function processProductMaking(ns : NS) : Promise<void> {
+async function processProductMaking(ns: NS): Promise<void> {
     if (!hasWarehouseAPI) return;
-    for (const industry of industries.filter(x => hasExpandedToIndustry(ns, x))) {
+    for (const industry of industries.filter((x) => hasExpandedToIndustry(ns, x))) {
         if (canIndustryMakeProducts(ns, industry)) {
             const division = getDivisionNameOfIndustry(ns, industry);
             await tryProductMakingForDivision(ns, division);
@@ -1715,7 +1746,7 @@ async function processProductMaking(ns : NS) : Promise<void> {
  * @param industry Name of industry.
  * @returns True if production is possible; false otherwise.
  */
-function canIndustryMakeProducts(ns : NS, industry : string) : boolean {
+function canIndustryMakeProducts(ns: NS, industry: string): boolean {
     const type = getIndustryType(industry);
     return type === IndustryType.Product;
 }
@@ -1725,7 +1756,7 @@ function canIndustryMakeProducts(ns : NS, industry : string) : boolean {
  * @param ns NS object parameter.
  * @param division Name of division.
  */
-async function tryProductMakingForDivision(ns : NS, division : string) : Promise<void> {
+async function tryProductMakingForDivision(ns: NS, division: string): Promise<void> {
     if (!canMakeProductInDivision(ns, division)) {
         logger.log(`Unable to make product in division ${division}`, { type: MessageType.debugHigh });
     } else {
@@ -1743,14 +1774,14 @@ async function tryProductMakingForDivision(ns : NS, division : string) : Promise
  * @param city Name of city.
  * @returns True if purchase is possible; false otherwise.
  */
-function canMakeProductInDivision(ns : NS, division : string) : boolean {
+function canMakeProductInDivision(ns: NS, division: string): boolean {
     if (!hasWarehouseForDivisionInCity(ns, division, mainProductionCity)) {
         logger.log(`${division} does not have a warehouse in ${mainProductionCity} (main production city) - deny product creation`, { type: MessageType.debugHigh });
         return false;
     }
 
     const products = ns.corporation.getDivision(division).products;
-    const productsInDevelopment = products.some(x => ns.corporation.getProduct(division, x).developmentProgress < 100);
+    const productsInDevelopment = products.some((x) => ns.corporation.getProduct(division, x).developmentProgress < 100);
     if (productsInDevelopment) {
         logger.log(`${division} has a product current in development - deny product creation`, { type: MessageType.debugHigh });
         return false;
@@ -1764,7 +1795,7 @@ function canMakeProductInDivision(ns : NS, division : string) : boolean {
  * @param ns NS object parameter.
  * @param division Name of division.
  */
-function checkProductCapacityAvailability(ns : NS, division : string) : void {
+function checkProductCapacityAvailability(ns: NS, division: string): void {
     if (atMaxProducts(ns, division)) {
         logger.log(`${division} at product capacity - need to discontinue one product`, { type: MessageType.debugLow });
         discontinueWorstProduct(ns, division);
@@ -1777,7 +1808,7 @@ function checkProductCapacityAvailability(ns : NS, division : string) : void {
  * @param division Name of division.
  * @returns True if the division is at capacity; false otherwise.
  */
-function atMaxProducts(ns : NS, division : string) : boolean {
+function atMaxProducts(ns: NS, division: string): boolean {
     let productCapacity = 3;
 
     if (hasOfficeAPI) {
@@ -1793,7 +1824,7 @@ function atMaxProducts(ns : NS, division : string) : boolean {
  * @param ns NS object parameter.
  * @param division Name of division.
  */
-function discontinueWorstProduct(ns : NS, division : string) : void {
+function discontinueWorstProduct(ns: NS, division: string): void {
     const worstProduct = getWorstProduct(ns, division);
     ns.corporation.discontinueProduct(division, worstProduct);
     logger.log(`Discontinuing product: ${worstProduct} in ${division}`, { type: MessageType.info });
@@ -1804,7 +1835,7 @@ function discontinueWorstProduct(ns : NS, division : string) : void {
  * @param ns NS object parameter.
  * @param division Name of division.
  */
-function getWorstProduct(ns : NS, division : string) : string {
+function getWorstProduct(ns: NS, division: string): string {
     logger.log(`Getting worst product in ${division}`, { type: MessageType.debugHigh });
     const products = ns.corporation.getDivision(division).products;
     return products[0];
@@ -1815,13 +1846,13 @@ function getWorstProduct(ns : NS, division : string) : string {
  * @param ns NS object parameter.
  * @param division Name of division.
  */
-function createNewProduct(ns : NS, division : string) : void {
+function createNewProduct(ns: NS, division: string): void {
     logger.log(`Creating new product in ${division}`, { type: MessageType.debugHigh });
     const productName = "prd_" + Math.round(performance.now()).toString();
     const productInvestAmt = Math.max(0, ns.corporation.getCorporation().funds * 0.1);
     ns.corporation.makeProduct(division, mainProductionCity, productName, productInvestAmt, productInvestAmt);
     logger.log(`Starting production of product: ${productName} in ${division}`, { type: MessageType.success });
-    logger.log(`Investment Amount: ${ns.nFormat(productInvestAmt, '$0.000a')}`, { type: MessageType.info });
+    logger.log(`Investment Amount: ${ns.nFormat(productInvestAmt, "$0.000a")}`, { type: MessageType.info });
 }
 
 /**
@@ -1829,12 +1860,14 @@ function createNewProduct(ns : NS, division : string) : void {
  * @param ns NS object parameter.
  * @param division Name of division.
  */
-async function assignProductSellPrices(ns : NS, division : string) : Promise<void> {
+async function assignProductSellPrices(ns: NS, division: string): Promise<void> {
     logger.log(`Assiging sell prices to products in ${division}`, { type: MessageType.debugHigh });
     const products = ns.corporation.getDivision(division).products;
 
     logger.log(`Waiting for next sell cycle to pass`, { type: MessageType.debugHigh });
-    while (ns.corporation.getCorporation().state !== "EXPORT") { await ns.asleep(10); }
+    while (ns.corporation.getCorporation().state !== "EXPORT") {
+        await ns.asleep(10);
+    }
 
     products.forEach((product) => {
         const productInfo = ns.corporation.getProduct(division, product);
@@ -1850,7 +1883,7 @@ async function assignProductSellPrices(ns : NS, division : string) : Promise<voi
  * @param division Name of division.
  * @param product Name of product.
  */
-function assignProductSellPricesForProduct(ns : NS, division : string, product : string) : void {
+function assignProductSellPricesForProduct(ns: NS, division: string, product: string): void {
     if (hasOfficeAPI) {
         if (ns.corporation.hasResearched(division, "Market-TA.II")) {
             const sellData = ns.corporation.getProduct(division, product).cityData["Volhaven"];
@@ -1873,7 +1906,7 @@ function assignProductSellPricesForProduct(ns : NS, division : string, product :
  * @param division Name of division.
  * @param product Name of product.
  */
-function setProductPricesWithMarketTA2(ns : NS, division : string, product : string, state : boolean) : void {
+function setProductPricesWithMarketTA2(ns: NS, division: string, product: string, state: boolean): void {
     ns.corporation.setProductMarketTA2(division, product, state);
     ns.corporation.setProductMarketTA1(division, product, state);
     ns.corporation.sellProduct(division, mainProductionCity, product, "MAX", `MP`, true);
@@ -1885,28 +1918,28 @@ function setProductPricesWithMarketTA2(ns : NS, division : string, product : str
  * @param division Name of division.
  * @param product Name of product.
  */
-function setProductPricesWithPriceEstimation(ns : NS, division : string, product : string) : void {
+function setProductPricesWithPriceEstimation(ns: NS, division: string, product: string): void {
     if (ns.corporation.hasResearched(division, "Market-TA.I")) ns.corporation.setProductMarketTA1(division, product, false);
 
     const productInfo = ns.corporation.getProduct(division, product);
-    const productData = corpData.divisions.find(x => x.name === division)?.products.find(x => x.name === product);
+    const productData = corpData.divisions.find((x) => x.name === division)?.products.find((x) => x.name === product);
     if (!productData) return;
 
     const currentMult = productInfo.sCost.toString().length > 2 ? parseFloat(productInfo.sCost.toString().substring(3)) : 1;
     let newMult = 1;
 
-    const city = "Volhaven"
+    const city = "Volhaven";
 
     const qty = productInfo.cityData[city][0];
     const prod = productInfo.cityData[city][1];
     const sell = productInfo.cityData[city][2];
 
     if (qty > 0 || prod > sell) {
-        newMult = parseFloat((currentMult - (0.01 * Math.pow(2, Math.floor(productData.successiveSellPriceIncreaseTicks[city] / 5)))).toFixed(2));
+        newMult = parseFloat((currentMult - 0.01 * Math.pow(2, Math.floor(productData.successiveSellPriceIncreaseTicks[city] / 5))).toFixed(2));
         productData.successiveSellPriceIncreaseTicks[city] = 0;
     } else {
         productData.successiveSellPriceIncreaseTicks[city] += 1;
-        newMult = parseFloat((currentMult + (0.01 * Math.pow(2, Math.floor(productData.successiveSellPriceIncreaseTicks[city] / 5)))).toFixed(2));
+        newMult = parseFloat((currentMult + 0.01 * Math.pow(2, Math.floor(productData.successiveSellPriceIncreaseTicks[city] / 5))).toFixed(2));
     }
 
     logger.log(`Setting sell price for ${product} from ${division} to MP*${newMult}`, { type: MessageType.debugLow });
@@ -1917,7 +1950,7 @@ function setProductPricesWithPriceEstimation(ns : NS, division : string, product
  * ------------------------
  * > OPTIMAL MATERIAL CALCULATOR FUNCTION
  * ------------------------
-*/
+ */
 
 /**
  * [STOLEN CODE] Calculate the optimal number of materials to boost production for a given division and storage size.
@@ -1925,55 +1958,72 @@ function setProductPricesWithPriceEstimation(ns : NS, division : string, product
  * @param size Size of warehouse.
  * @returns Optimal storage amounts.
  */
-function optimalMaterialStorage(divisionType : string, size : number) : Record<string, number> {
-    const matProdFactors : Record<string, Record<string, number>> = {
-        "Energy":           {"Hardware": 0.,    "RealEstate": 0.65, "Robots": 0.05, "AICores": 0.3},
-        "Utilities":        {"Hardware": 0.,    "RealEstate": 0.5,  "Robots": 0.4,  "AICores": 0.4},
-        "Agriculture":      {"Hardware": 0.2,   "RealEstate": 0.72, "Robots": 0.3,  "AICores": 0.3},
-        "Fishing":          {"Hardware": 0.35,  "RealEstate": 0.15, "Robots": 0.5,  "AICores": 0.2},
-        "Mining":           {"Hardware": 0.4,   "RealEstate": 0.3,  "Robots": 0.45, "AICores": 0.45},
-        "Food":             {"Hardware": 0.15,  "RealEstate": 0.05, "Robots": 0.3,  "AICores": 0.25},
-        "Tobacco":          {"Hardware": 0.15,  "RealEstate": 0.15, "Robots": 0.2,  "AICores": 0.15},
-        "Chemical":         {"Hardware": 0.2,   "RealEstate": 0.25, "Robots": 0.25, "AICores": 0.2},
-        "Pharmaceutical":   {"Hardware": 0.15,  "RealEstate": 0.05, "Robots": 0.25, "AICores": 0.2},
-        "Computer":         {"Hardware": 0.,    "RealEstate": 0.2,  "Robots": 0.36, "AICores": 0.19},
-        "Robotics":         {"Hardware": 0.19,  "RealEstate": 0.32, "Robots": 0.,   "AICores": 0.36},
-        "Software":         {"Hardware": 0.25,  "RealEstate": 0.15, "Robots": 0.05, "AICores": 0.18},
-        "Healthcare":       {"Hardware": 0.1,   "RealEstate": 0.1,  "Robots": 0.1,  "AICores": 0.1},
-        "Real Estate":      {"Hardware": 0.05,  "RealEstate": 0.,   "Robots": 0.6,  "AICores": 0.6},
+function optimalMaterialStorage(divisionType: string, size: number): Record<string, number> {
+    const matProdFactors: Record<string, Record<string, number>> = {
+        "Energy": { Hardware: 0, RealEstate: 0.65, Robots: 0.05, AICores: 0.3 },
+        "Utilities": { Hardware: 0, RealEstate: 0.5, Robots: 0.4, AICores: 0.4 },
+        "Agriculture": { Hardware: 0.2, RealEstate: 0.72, Robots: 0.3, AICores: 0.3 },
+        "Fishing": { Hardware: 0.35, RealEstate: 0.15, Robots: 0.5, AICores: 0.2 },
+        "Mining": { Hardware: 0.4, RealEstate: 0.3, Robots: 0.45, AICores: 0.45 },
+        "Food": { Hardware: 0.15, RealEstate: 0.05, Robots: 0.3, AICores: 0.25 },
+        "Tobacco": { Hardware: 0.15, RealEstate: 0.15, Robots: 0.2, AICores: 0.15 },
+        "Chemical": { Hardware: 0.2, RealEstate: 0.25, Robots: 0.25, AICores: 0.2 },
+        "Pharmaceutical": { Hardware: 0.15, RealEstate: 0.05, Robots: 0.25, AICores: 0.2 },
+        "Computer": { Hardware: 0, RealEstate: 0.2, Robots: 0.36, AICores: 0.19 },
+        "Robotics": { Hardware: 0.19, RealEstate: 0.32, Robots: 0, AICores: 0.36 },
+        "Software": { Hardware: 0.25, RealEstate: 0.15, Robots: 0.05, AICores: 0.18 },
+        "Healthcare": { Hardware: 0.1, RealEstate: 0.1, Robots: 0.1, AICores: 0.1 },
+        "Real Estate": { Hardware: 0.05, RealEstate: 0, Robots: 0.6, AICores: 0.6 }
     };
-    const matSizes : Record<string, number> = { "Hardware": 0.06, "RealEstate": 0.005, "Robots": 0.5, "AICores": 0.1 };
+    const matSizes: Record<string, number> = { Hardware: 0.06, RealEstate: 0.005, Robots: 0.5, AICores: 0.1 };
 
-    const beta = 0.002;         // constant multiplier used in production factor calculation
+    const beta = 0.002; // constant multiplier used in production factor calculation
     const epsilon = 1e-12;
     const alpha = matProdFactors[divisionType];
 
-    const storage : Record<string, number> = { "Hardware": -1., "RealEstate": -1., "Robots": -1., "AICores": -1. };
+    const storage: Record<string, number> = { Hardware: -1, RealEstate: -1, Robots: -1, AICores: -1 };
 
-    const removedMats : string[] = [];       // if the optimal solution requires negative material storage, resolve without that material
+    const removedMats: string[] = []; // if the optimal solution requires negative material storage, resolve without that material
     while (true) {
         let alphaSum = 0;
         let gSum = 0;
         for (const mat in matSizes) {
             if (!removedMats.includes(mat)) {
-                gSum += matSizes[mat];      // sum of material sizes
-                alphaSum += alpha[mat];     // sum of material material "production factors"
+                gSum += matSizes[mat]; // sum of material sizes
+                alphaSum += alpha[mat]; // sum of material material "production factors"
             }
         }
         for (const mat in matSizes) {
             if (!removedMats.includes(mat)) {
                 // solution of the constrained optimiztion problem via the method of Lagrange multipliers
-                storage[mat] = 1./beta*(alpha[mat]/alphaSum*(beta*size + gSum)/matSizes[mat] - 1.);
+                storage[mat] = (1 / beta) * (((alpha[mat] / alphaSum) * (beta * size + gSum)) / matSizes[mat] - 1);
             }
         }
 
         if (storage["Hardware"] >= -epsilon && storage["RealEstate"] >= -epsilon && storage["Robots"] >= -epsilon && storage["AICores"] >= -epsilon) {
             break;
-        } else { // negative solutions are possible, remove corresponding material and resolve
-            if (storage["Hardware"] < -epsilon)     { storage["Hardware"] = 0.;     removedMats.push("Hardware"); continue; }
-            if (storage["RealEstate"] < -epsilon)   { storage["RealEstate"] = 0.;   removedMats.push("RealEstate"); continue; }
-            if (storage["Robots"] < -epsilon)       { storage["Robots"] = 0.;       removedMats.push("Robots"); continue; }
-            if (storage["AICores"] < -epsilon)      { storage["AICores"] = 0.;      removedMats.push("AICores"); continue; }
+        } else {
+            // negative solutions are possible, remove corresponding material and resolve
+            if (storage["Hardware"] < -epsilon) {
+                storage["Hardware"] = 0;
+                removedMats.push("Hardware");
+                continue;
+            }
+            if (storage["RealEstate"] < -epsilon) {
+                storage["RealEstate"] = 0;
+                removedMats.push("RealEstate");
+                continue;
+            }
+            if (storage["Robots"] < -epsilon) {
+                storage["Robots"] = 0;
+                removedMats.push("Robots");
+                continue;
+            }
+            if (storage["AICores"] < -epsilon) {
+                storage["AICores"] = 0;
+                removedMats.push("AICores");
+                continue;
+            }
         }
     }
 
@@ -1985,15 +2035,8 @@ function optimalMaterialStorage(divisionType : string, size : number) : Record<s
     return storage;
 }
 
-
-
-
-
-
-
-
-async function bribeFactions(ns : NS) : Promise<void> {
-    const factionRep = await runDodgerScript<{ faction : string; rep : number }[]>(ns, "/singularity/dodger/getFactionRep-bulk.js", JSON.stringify(player.factions.joinedFactions));
+async function bribeFactions(ns: NS): Promise<void> {
+    const factionRep = await runDodgerScript<{ faction: string; rep: number }[]>(ns, "/singularity/dodger/getFactionRep-bulk.js", JSON.stringify(player.factions.joinedFactions));
     const rep = ns.singularity.getAugmentationRepReq("The Red Pill");
     const gangFaction = ns.gang.inGang() ? ns.gang.getGangInformation().faction : "";
     for (const f of factionRep) {
@@ -2005,78 +2048,74 @@ async function bribeFactions(ns : NS) : Promise<void> {
     }
 }
 
-
 // researhc idk
 
-async function processResearchUpgrades(ns : NS) : Promise<void> {
+async function processResearchUpgrades(ns: NS): Promise<void> {
     if (!hasOfficeAPI) return;
-    for (const industry of industries.filter(x => hasExpandedToIndustry(ns, x))) {
+    for (const industry of industries.filter((x) => hasExpandedToIndustry(ns, x))) {
         const division = getDivisionNameOfIndustry(ns, industry);
 
-        for (const r of ["Hi-Tech R&D Laboratory", "Market-TA.I", "Market-TA.II",]) {
+        for (const r of ["Hi-Tech R&D Laboratory", "Market-TA.I", "Market-TA.II"]) {
             if (!ns.corporation.hasResearched(division, r)) {
                 if (ns.corporation.getDivision(division).research >= ns.corporation.getResearchCost(division, r) * 2) {
-                    ns.corporation.research(division, r)
+                    ns.corporation.research(division, r);
                 }
             }
         }
     }
 }
 
-
-
-
-/** @param {NS} ns 'ns' namespace parameter. */
-export async function main(ns: NS) : Promise<void> {
-	ns.disableLog("ALL");
-	logger = new ScriptLogger(ns, "CORP-DAE", "Corporation Daemon");
+/** @param ns NS object */
+export async function main(ns: NS): Promise<void> {
+    ns.disableLog("ALL");
+    logger = new ScriptLogger(ns, "CORP-DAE", "Corporation Daemon");
 
     // Parse args?
     industries = ["Agriculture", "Tobacco"];
-    industries.forEach(x => x = x.substring(0, 1).toUpperCase() + x.substring(1).toLowerCase());
-    if (!industries.every(x => INDUSTRIES.includes(x))) {
-        await logger.abort("Invalid industry", { type: MessageType.error });
+    industries.forEach((x) => (x = x.substring(0, 1).toUpperCase() + x.substring(1).toLowerCase()));
+    if (!industries.every((x) => INDUSTRIES.includes(x))) {
+        logger.log("Invalid industry", { type: MessageType.error });
+        ns.exit();
+        await ns.asleep(5000);
     }
 
-	// Parse flags
-	const flags = ns.flags(flagSchema);
-	help = flags.h || flags["help"];
-	verbose = flags.v || flags["verbose"];
-	debug = flags.d || flags["debug"];
+    // Parse flags
+    const flags = ns.flags(flagSchema);
+    help = flags.h || flags["help"];
+    verbose = flags.v || flags["verbose"];
+    debug = flags.d || flags["debug"];
 
-	if (verbose) logger.setLogLevel(2);
-	if (debug) 	 logger.setLogLevel(3);
+    if (verbose) logger.setLogLevel(2);
+    if (debug) logger.setLogLevel(3);
 
-	// Helper output
-	if (help) {
-		ns.tprintf(
-			`Corporation Daemon Helper:\n`+
-			`Description:\n` +
-			`   Manage your very own corporation... by doing nothing! (Does not guarantee return on investment).\n` +
-			`Usage: run /corporation/corporation-daemon.js [args] [flags]\n` +
-            `Args:\n` +
-            `   [industries to join] : string[] |>> List of industries to join >>in order<<. \n` +
-			`Flags:\n` +
-			`   [--h or help]        : boolean  |>> Prints this.\n` +
-			`   [--v or --verbose]   : boolean  |>> Sets logging level to 2 - more verbosing logging.\n` +
-			`   [--d or --debug]     : boolean  |>> Sets logging level to 3 - even more verbosing logging.`
-		);
+    // Helper output
+    if (help) {
+        ns.tprintf(
+            `Corporation Daemon Helper:\n` +
+                `Description:\n` +
+                `   Manage your very own corporation... by doing nothing! (Does not guarantee return on investment).\n` +
+                `Usage: run /corporation/corporation-daemon.js [args] [flags]\n` +
+                `Args:\n` +
+                `   [industries to join] : string[] |>> List of industries to join >>in order<<. \n` +
+                `Flags:\n` +
+                `   [--h or help]        : boolean  |>> Prints this.\n` +
+                `   [--v or --verbose]   : boolean  |>> Sets logging level to 2 - more verbosing logging.\n` +
+                `   [--d or --debug]     : boolean  |>> Sets logging level to 3 - even more verbosing logging.`
+        );
 
-		return;
-	}
+        return;
+    }
 
     // Define player and current server
     player = genPlayer(ns);
-    //machine = genServer(ns, ns.getHostname());
 
     setupCorporationEnvironment(ns);
 
     await updateCorpData(ns);
 
-	logger.initialisedMessage(true, false);
+    logger.initialisedMessage(true, false);
 
     while (true) {
-
         logger.log("Starting corporation cycle", { type: MessageType.debugLow });
 
         processInvestmentOffers(ns);

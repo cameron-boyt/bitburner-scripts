@@ -1,23 +1,23 @@
-import { ActiveFragment, NS } from '@ns'
-import { MessageType, ScriptLogger } from '/libraries/script-logger';
-import { runDodgerScript } from '/helpers/dodger-helper';
-import { getFreeRam } from '/helpers/server-helper';
+import { ActiveFragment, NS } from "@ns";
+import { MessageType, ScriptLogger } from "/libraries/script-logger";
+import { runDodgerScript } from "/helpers/dodger-helper";
+import { getFreeRam } from "/helpers/server-helper";
 
 // Script logger
-let logger : ScriptLogger;
+let logger: ScriptLogger;
 
 // Script refresh period
 const refreshPeriod = 1000;
 
 // Flags
-const flagSchema : [string, string | number | boolean | string[]][] = [
-	["h", false],
-	["help", false],
+const flagSchema: [string, string | number | boolean | string[]][] = [
+    ["h", false],
+    ["help", false],
     ["v", false],
     ["verbose", false],
     ["d", false],
     ["debug", false],
-    ["reserved-ram", 0]
+    ["reserved-ram", 0],
 ];
 
 // Flag set variables
@@ -29,10 +29,10 @@ let reservedRam = 0; // Amount of RAM that will be kept unused when charging fra
 
 /*
  * > SCRIPT VARIABLES <
-*/
+ */
 
 /** This machine's hostname */
-let hostname : string;
+let hostname: string;
 
 /* Gift charging script. */
 const CHARGE_SCRIPT = "/staneks-gift/single/chargeFragment.js";
@@ -43,13 +43,13 @@ const CHARGE_SCRIPT_RAM = 2;
  * ------------------------
  * > ENVIRONMENT SETUP FUNCTION
  * ------------------------
-*/
+ */
 
 /**
  * Set up the environment for this script.
  * @param ns NS object parameter.
  */
-async function setupEnvironment(ns : NS) : Promise<void> {
+async function setupEnvironment(ns: NS): Promise<void> {
     hostname = await runDodgerScript<string>(ns, "/servers/dodger/getHostname.js");
 }
 
@@ -57,65 +57,66 @@ async function setupEnvironment(ns : NS) : Promise<void> {
  * ------------------------
  * > MAIN LOOP
  * ------------------------
-*/
+ */
 
-/** @param {NS} ns 'ns' namespace parameter. */
-export async function main(ns: NS) : Promise<void> {
-	ns.disableLog("ALL");
+/** @param ns NS object */
+export async function main(ns: NS): Promise<void> {
+    ns.disableLog("ALL");
     logger = new ScriptLogger(ns, "GIFT-CHARGE", "Gift Charger Daemon");
 
-	// Parse flags
-	const flags = ns.flags(flagSchema);
-	help = flags.h || flags["help"];
-	verbose = flags.v || flags["verbose"];
-	debug = flags.d || flags["debug"];
-	reservedRam = flags["reserved-ram"];
+    // Parse flags
+    const flags = ns.flags(flagSchema);
+    help = flags.h || flags["help"];
+    verbose = flags.v || flags["verbose"];
+    debug = flags.d || flags["debug"];
+    reservedRam = flags["reserved-ram"];
 
-	if (verbose) logger.setLogLevel(2);
-	if (debug) 	 logger.setLogLevel(3);
+    if (verbose) logger.setLogLevel(2);
+    if (debug) logger.setLogLevel(3);
 
-	// Helper output
-	if (help) {
-		ns.tprintf('%s',
-			`Stanek's Gift Charge Daemon\n`+
-			`Description:\n` +
-			`   Charges Stanek's Gift so you can focus on other tasks... glorious..!\n` +
-			`Usage:\n` +
-			`   run /staneks-gift/gift-charger-daemon.js [flags]\n` +
-			`Flags:\n` +
-			`   -h or --help               : boolean |>> Prints this.\n` +
-			`   -v or --verbose            : boolean |>> Sets logging level to 2 - more verbosing logging.\n` +
-			`   -d or --debug              : boolean |>> Sets logging level to 3 - even more verbosing logging.`
-		);
+    // Helper output
+    if (help) {
+        ns.tprintf(
+            "%s",
+            `Stanek's Gift Charge Daemon\n` +
+                `Description:\n` +
+                `   Charges Stanek's Gift so you can focus on other tasks... glorious..!\n` +
+                `Usage:\n` +
+                `   run /staneks-gift/gift-charger-daemon.js [flags]\n` +
+                `Flags:\n` +
+                `   -h or --help               : boolean |>> Prints this.\n` +
+                `   -v or --verbose            : boolean |>> Sets logging level to 2 - more verbosing logging.\n` +
+                `   -d or --debug              : boolean |>> Sets logging level to 3 - even more verbosing logging.`
+        );
 
-		return;
-	}
+        return;
+    }
 
-	await setupEnvironment(ns);
+    await setupEnvironment(ns);
 
-	logger.initialisedMessage(true, false);
+    logger.initialisedMessage(true, false);
 
-	while (true) {
-		const fragments = await runDodgerScript<ActiveFragment[]>(ns, "/staneks-gift/dodger/activeFragments.js");
-		const trueFragments = fragments.filter(x => x.id < 100);
+    while (true) {
+        const fragments = await runDodgerScript<ActiveFragment[]>(ns, "/staneks-gift/dodger/activeFragments.js");
+        const trueFragments = fragments.filter((x) => x.id < 100);
 
-		if (trueFragments.length === 0) {
-			logger.log("No fragments on board - exiting.", { type: MessageType.warning });
-			break;
-		}
-
-		const freeRam = Math.max(0, getFreeRam(ns, hostname) - reservedRam);
-
-        for (const frag of trueFragments) {
-            const threads = Math.floor((freeRam / trueFragments.length) / CHARGE_SCRIPT_RAM);
-			if (threads > 0) {
-				const result = ns.run(CHARGE_SCRIPT, threads, frag.x, frag.y);
-				if (result === 0) {
-					logger.log(`Failed to charge fragment: ${frag.id}`, { type: MessageType.fail });
-				}
-			}
+        if (trueFragments.length === 0) {
+            logger.log("No fragments on board - exiting.", { type: MessageType.warning });
+            break;
         }
 
-		await ns.asleep(refreshPeriod);
-	}
+        const freeRam = Math.max(0, getFreeRam(ns, hostname) - reservedRam);
+
+        for (const frag of trueFragments) {
+            const threads = Math.floor(freeRam / trueFragments.length / CHARGE_SCRIPT_RAM);
+            if (threads > 0) {
+                const result = ns.run(CHARGE_SCRIPT, threads, frag.x, frag.y);
+                if (result === 0) {
+                    logger.log(`Failed to charge fragment: ${frag.id}`, { type: MessageType.fail });
+                }
+            }
+        }
+
+        await ns.asleep(refreshPeriod);
+    }
 }

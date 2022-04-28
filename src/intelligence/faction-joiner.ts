@@ -1,14 +1,14 @@
-import { NS } from '@ns'
+import { NS } from "@ns";
 
 /*
  * ------------------------
  * > MAIN LOOP
  * ------------------------
-*/
+ */
 
-/** @param {NS} ns 'ns' namespace parameter. */
-export async function main(ns: NS) : Promise<void> {
-	ns.disableLog("ALL");
+/** @param ns NS object */
+export async function main(ns: NS): Promise<void> {
+    ns.disableLog("ALL");
 
     const factions = [
         "ECorp",
@@ -20,8 +20,8 @@ export async function main(ns: NS) : Promise<void> {
         "OmniTek Incorporated",
         "Bachman & Associates",
         "Clarke Incorporated",
-        "Fulcrum Secret Technologies"
-    ]
+        "Fulcrum Secret Technologies",
+    ];
 
     for (const faction of factions) {
         ns.singularity.joinFaction(faction);

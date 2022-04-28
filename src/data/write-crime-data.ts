@@ -1,11 +1,11 @@
-import { CrimeStats, NS } from '@ns'
-import { CRIMES } from '/libraries/constants.js';
+import { CrimeStats, NS } from "@ns";
+import { CRIMES } from "/libraries/constants.js";
 
-/** @param {NS} ns 'ns' namespace parameter. */
-export async function main(ns: NS) : Promise<void> {
-	ns.disableLog("ALL");
+/** @param ns NS object */
+export async function main(ns: NS): Promise<void> {
+    ns.disableLog("ALL");
 
-    const crimeData : CrimeStats[] = [];
+    const crimeData: CrimeStats[] = [];
 
     for (const crime of CRIMES) {
         const stats = ns.singularity.getCrimeStats(crime);
@@ -16,5 +16,5 @@ export async function main(ns: NS) : Promise<void> {
 
     ns.print(crimeDataJson);
 
-    await ns.write("/data/crimeData.txt", [crimeDataJson], 'w');
+    await ns.write("/data/crimeData.txt", [crimeDataJson], "w");
 }

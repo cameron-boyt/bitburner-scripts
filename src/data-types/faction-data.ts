@@ -1,38 +1,35 @@
-
 export enum FactionWorkType {
     Hacking,
     Security,
     Field,
-    None
+    None,
 }
 
-export function getFactionWorkTypeFromEnum(type : FactionWorkType) : string {
+export function getFactionWorkTypeFromEnum(type: FactionWorkType): string {
     switch (type) {
-        case FactionWorkType.Hacking: return "Hacking";
-        case FactionWorkType.Security: return "Security";
-        case FactionWorkType.Field: return "Field";
-        case FactionWorkType.None: return "None";
+        case FactionWorkType.Hacking:
+            return "Hacking";
+        case FactionWorkType.Security:
+            return "Security";
+        case FactionWorkType.Field:
+            return "Field";
+        case FactionWorkType.None:
+            return "None";
     }
 }
 
-export function getFactionWorkTypeFromString(type : string) : FactionWorkType {
+export function getFactionWorkTypeFromString(type: string): FactionWorkType {
     type = type.toLowerCase();
     switch (type) {
-        case "hacking": return FactionWorkType.Hacking;
-        case "security": return FactionWorkType.Security;
-        case "field": return FactionWorkType.Field;
-        default: throw new Error(`Unknown faction type string encountered: ${type}`);
+        case "hacking":
+            return FactionWorkType.Hacking;
+        case "security":
+            return FactionWorkType.Security;
+        case "field":
+            return FactionWorkType.Field;
+        default:
+            throw new Error(`Unknown faction type string encountered: ${type}`);
     }
-}
-
-export interface IFactionReptuation {
-    faction : string;
-    rep : number;
-}
-
-export interface IFactionAugmentations {
-    faction : string;
-    augments : string[];
 }
 
 export const factionAvailableWorkTypes = [
@@ -66,5 +63,5 @@ export const factionAvailableWorkTypes = [
     { faction: "Church of the Machine God", types: [FactionWorkType.None] },
     { faction: "Netburners", types: [FactionWorkType.Hacking] },
     { faction: "The Syndicate", types: [FactionWorkType.Hacking, FactionWorkType.Field, FactionWorkType.Security] },
-    { faction: "Tian Di Hui", types: [FactionWorkType.Hacking, FactionWorkType.Security] }
+    { faction: "Tian Di Hui", types: [FactionWorkType.Hacking, FactionWorkType.Security] },
 ];

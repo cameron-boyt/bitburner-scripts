@@ -1,13 +1,16 @@
 export enum CrimeType {
     Money,
     Karma,
-    Kills
+    Kills,
 }
 
-export function getCrimeTypeFromEnum(type : CrimeType) : string {
-    switch(type) {
-        case CrimeType.Money: return "Money";
-        case CrimeType.Karma: return "Karma";
-        case CrimeType.Kills: return "Kills";
+export function getCrimeTypeFromEnum(type: CrimeType): string {
+    switch (type) {
+        case CrimeType.Money:
+            return "Money";
+        case CrimeType.Karma:
+            return "Karma";
+        case CrimeType.Kills:
+            return "Kills";
     }
 }

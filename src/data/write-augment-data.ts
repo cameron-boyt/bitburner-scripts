@@ -1,15 +1,15 @@
-import { NS } from '@ns'
-import { ALL_FACTIONS, IAugmentInfo } from '/libraries/constants.js';
+import { NS } from "@ns";
+import { ALL_FACTIONS, IAugmentInfo } from "/libraries/constants.js";
 
-/** @param {NS} ns 'ns' namespace parameter. */
-export async function main(ns: NS) : Promise<void> {
-	ns.disableLog("ALL");
+/** @param ns NS object */
+export async function main(ns: NS): Promise<void> {
+    ns.disableLog("ALL");
 
-    const allAugs : IAugmentInfo[] = [];
+    const allAugs: IAugmentInfo[] = [];
 
     for (const faction of ALL_FACTIONS) {
         for (const aug of ns.singularity.getAugmentationsFromFaction(faction)) {
-            const exitingAugEntry = allAugs.find(x => x.name === aug);
+            const exitingAugEntry = allAugs.find((x) => x.name === aug);
             if (exitingAugEntry) {
                 exitingAugEntry.factions.push(faction);
             } else {
@@ -19,7 +19,7 @@ export async function main(ns: NS) : Promise<void> {
                     cost: ns.singularity.getAugmentationPrice(aug),
                     repReq: ns.singularity.getAugmentationRepReq(aug),
                     preReq: ns.singularity.getAugmentationPrereq(aug),
-                    stats: ns.singularity.getAugmentationStats(aug)
+                    stats: ns.singularity.getAugmentationStats(aug),
                 });
             }
         }
@@ -29,5 +29,5 @@ export async function main(ns: NS) : Promise<void> {
 
     ns.print(augmentDataJson);
 
-    await ns.write("/data/augmentData.txt", [augmentDataJson], 'w');
+    await ns.write("/data/augmentData.txt", [augmentDataJson], "w");
 }

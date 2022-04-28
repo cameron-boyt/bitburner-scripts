@@ -1,12 +1,12 @@
-import { GangTaskStats, NS } from '@ns'
+import { GangTaskStats, NS } from "@ns";
 
-/** @param {NS} ns 'ns' namespace parameter. */
-export async function main(ns: NS) : Promise<void> {
-	ns.disableLog("ALL");
+/** @param ns NS object */
+export async function main(ns: NS): Promise<void> {
+    ns.disableLog("ALL");
 
     if (!ns.gang.inGang()) return;
 
-    const gangTaskData : GangTaskStats[] = [];
+    const gangTaskData: GangTaskStats[] = [];
 
     for (const task of ns.gang.getTaskNames()) {
         const stats = ns.gang.getTaskStats(task);
@@ -18,5 +18,5 @@ export async function main(ns: NS) : Promise<void> {
 
     ns.print(gangTaskData);
 
-    await ns.write("/data/gangTaskData.txt", [gangTaskDataJson], 'w');
+    await ns.write("/data/gangTaskData.txt", [gangTaskDataJson], "w");
 }
