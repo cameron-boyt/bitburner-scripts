@@ -1,22 +1,22 @@
-import { NS } from '../../../NetscriptDefinitions';
+import { NS } from "../../../NetscriptDefinitions";
 
-/** @param {NS} ns 'ns' namespace parameter. */
-export async function main(ns: NS) : Promise<void> {
-	const TARGET = ns.args[0] as string;
-	const START_TIME = ns.args[1] as number;
-	const STOCKS = ns.args[2] as boolean;
+/** @param ns NS object */
+export async function main(ns: NS): Promise<void> {
+    const TARGET = ns.args[0] as string;
+    const START_TIME = ns.args[1] as number;
+    const STOCKS = ns.args[2] as boolean;
 
-	const sleepTime = START_TIME - performance.now();
+    const sleepTime = START_TIME - performance.now();
 
-	if (sleepTime > 0) {
-		await ns.asleep(sleepTime);
-	}
+    if (sleepTime > 0) {
+        await ns.asleep(sleepTime);
+    }
 
-	// Perform self-termination if out of sync due to some
-	if (Math.abs(performance.now() - START_TIME) >= 100) {
-		ns.print("Missed execution window - terminating.");
-		ns.exit();
-	}
+    // Perform self-termination if out of sync due to some
+    if (Math.abs(performance.now() - START_TIME) >= 100) {
+        ns.print("Missed execution window - terminating.");
+        ns.exit();
+    }
 
-	await ns.hack(TARGET, { stock: STOCKS });
+    await ns.hack(TARGET, { stock: STOCKS });
 }
