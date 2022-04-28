@@ -1,6 +1,6 @@
 import { BitNodeMultipliers, GangGenInfo, GangMemberAscension, GangMemberInfo, GangOtherInfoObject, GangTaskStats, NS } from "@ns";
 import { MessageType, ScriptLogger } from "/libraries/script-logger.js";
-import { PortNumber, purgePort, writeToPort } from "/libraries/port-handler.js";
+import { PortNumber, purgePort, writeToPort } from "/helpers/port-helper.js";
 import { gangMemberNames, gangNames, GangSpecialTasks, IGangData, IGangEquipment } from "/gangs/gang-data";
 import { genPlayer, IPlayerObject } from "/libraries/player-factory";
 import { readBitnodeMultiplierData } from "/data/read-bitnodemult-data";
@@ -21,7 +21,7 @@ const flagSchema: [string, string | number | boolean | string[]][] = [
     ["verbose", false],
     ["d", false],
     ["debug", false],
-    ["wild", false],
+    ["wild", false]
 ];
 
 // Flag set variables
@@ -58,6 +58,27 @@ const gangAscensionResults: Record<string, GangMemberAscension | undefined> = {}
 
 /** Proportion of generated funds to go back into upgrading gang members. */
 const profitRatioForUpgrades = 0.9;
+
+/*
+ * ------------------------
+ * > ARGUMENT AND FLAG PARSING FUNCTIONS
+ * ------------------------
+ */
+
+/**
+ * Parse script flags.
+ * @param ns NS object.
+ */
+async function parseFlags(ns: NS): Promise<void> {
+    const flags = ns.flags(flagSchema);
+    help = flags.h || flags["help"];
+    verbose = flags.v || flags["verbose"];
+    debug = flags.d || flags["debug"];
+    wildSpending = flags["wild"];
+
+    if (verbose) logger.setLogLevel(2);
+    if (debug) logger.setLogLevel(3);
+}
 
 /*
  * ------------------------
@@ -119,7 +140,7 @@ async function setupEnvironment(ns: NS): Promise<void> {
         nextPowerTick: 0,
         lastUpdate: performance.now(),
         currentFunds: 0,
-        refreshPeriod: refreshPeriod,
+        refreshPeriod: refreshPeriod
     };
 
     taskInfo = await runDodgerScript<GangTaskStats[]>(ns, "/gangs/dodger/getTaskStats-bulk.js", taskNames);
@@ -689,15 +710,7 @@ export async function main(ns: NS): Promise<void> {
     logger = new ScriptLogger(ns, "GANG", "Gang Management Daemon");
     player = genPlayer(ns);
 
-    // Parse flags
-    const flags = ns.flags(flagSchema);
-    help = flags.h || flags["help"];
-    verbose = flags.v || flags["verbose"];
-    debug = flags.d || flags["debug"];
-    wildSpending = flags["wild"];
-
-    if (verbose) logger.setLogLevel(2);
-    if (debug) logger.setLogLevel(3);
+    parseFlags(ns);
 
     // Helper output
     if (help) {

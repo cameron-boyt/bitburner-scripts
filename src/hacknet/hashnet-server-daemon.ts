@@ -35,7 +35,7 @@ const flagSchema: [string, string | number | boolean | string[]][] = [
     ["hash-corp-research", false],
     ["hash-bladeburner", false],
     ["hash-bladeburner-rank", false],
-    ["hash-bladeburner-skill", false],
+    ["hash-bladeburner-skill", false]
 ];
 
 // Flag set variables
@@ -96,6 +96,38 @@ let hashServerTarget: IServerObject;
 
 /*
  * ------------------------
+ * > ARGUMENT AND FLAG PARSING FUNCTIONS
+ * ------------------------
+ */
+
+/**
+ * Parse script flags.
+ * @param ns NS object.
+ */
+async function parseFlags(ns: NS): Promise<void> {
+    const flags = ns.flags(flagSchema);
+    help = flags.h || flags["help"];
+    verbose = flags.v || flags["verbose"];
+    debug = flags.d || flags["debug"];
+    wildSpending = flags["wild"];
+    hashNoMoney = flags["hash-no-money"];
+    hashImproveGym = flags["hash-improve-gym"] || flags["hash-improve"];
+    hashImproveStudy = flags["hash-improve-study"] || flags["hash-improve"];
+    hashHackingMoney = flags["hash-hacking-money"] || flags["hash-hacking"];
+    hashHackingSecurity = flags["hash-hacking-secutiry"] || flags["hash-hacking"];
+    hashCorpFunds = flags["hash-corp-funds"] || flags["hash-corp"];
+    hashCorpResearch = flags["hash-corp-research"] || flags["hash-corp"];
+    hashBladeburnerRank = flags["hash-bladeburner-rank"] || flags["hash-bladeburner"];
+    hashBladeburnerSkill = flags["hash-bladeburner-skill"] || flags["hash-bladeburner"];
+
+    if (verbose) logger.setLogLevel(2);
+    if (debug) logger.setLogLevel(3);
+
+    if (wildSpending) refreshPeriod = 1000;
+}
+
+/*
+ * ------------------------
  * > ENVIRONMENT SETUP FUNCTION
  * ------------------------
  */
@@ -125,7 +157,7 @@ function setupEnvironment(ns: NS): void {
         overallProduction: 0,
         overallTotalProduction: 0,
         refreshPeriod: 0,
-        lastUpdate: 0,
+        lastUpdate: 0
     };
 
     purgePort(ns, PortNumber.HacknetData);
@@ -171,7 +203,7 @@ async function updateHacknetData(ns: NS): Promise<void> {
             ramUsed: stats.ramUsed,
             production: stats.production,
             totalProduction: stats.totalProduction,
-            hashCapacity: stats.hashCapacity,
+            hashCapacity: stats.hashCapacity
         });
     }
 
@@ -183,10 +215,10 @@ async function updateHacknetData(ns: NS): Promise<void> {
 
     hacknetData.currentHashes = ns.hacknet.numHashes();
     logger.log(`Production since last tick: ${ns.nFormat(productionSinceLastTick, "0.000a") + " hashes"} (${ns.nFormat(moneyProductionSinceLastTick, "$0.000a")})`, {
-        type: MessageType.debugLow,
+        type: MessageType.debugLow
     });
     logger.log(`Total stored funds: ${ns.nFormat(hacknetData.currentHashes, "0.000a") + " hashes"} (${ns.nFormat(hacknetData.currentFunds, "$0.000a")})`, {
-        type: MessageType.debugLow,
+        type: MessageType.debugLow
     });
 
     hashServerTarget = servers.filter((server) => server.isHackableServer).sort((a, b) => b.hackAttractiveness - a.hackAttractiveness)[0];
@@ -633,14 +665,14 @@ function tryDoUpgradeServerCache(ns: NS, index: number, cost: number): boolean {
     if (ns.hacknet.upgradeCache(index, 1)) {
         logger.log(`Bought Cache upgrade (${oldLevel} >> ${oldLevel + 1} Capacity: ${oldCapacity} >> ${oldCapacity * 2}) for Server #${index}`, {
             type: MessageType.success,
-            sendToast: true,
+            sendToast: true
         });
         hacknetData.currentFunds -= cost;
         return true;
     } else {
         logger.log(`Failed to buy Cache upgrade (${oldLevel} >> ${oldLevel + 1} Capacity: ${oldCapacity} >> ${oldCapacity * 2}) for Server #${index}`, {
             type: MessageType.fail,
-            sendToast: true,
+            sendToast: true
         });
         return false;
     }
@@ -791,26 +823,7 @@ export async function main(ns: NS): Promise<void> {
     ns.disableLog("ALL");
     logger = new ScriptLogger(ns, "HASHNET", "Hashnet Server Management Daemon");
 
-    // Parse flags
-    const flags = ns.flags(flagSchema);
-    help = flags.h || flags["help"];
-    verbose = flags.v || flags["verbose"];
-    debug = flags.d || flags["debug"];
-    wildSpending = flags["wild"];
-    hashNoMoney = flags["hash-no-money"];
-    hashImproveGym = flags["hash-improve-gym"] || flags["hash-improve"];
-    hashImproveStudy = flags["hash-improve-study"] || flags["hash-improve"];
-    hashHackingMoney = flags["hash-hacking-money"] || flags["hash-hacking"];
-    hashHackingSecurity = flags["hash-hacking-secutiry"] || flags["hash-hacking"];
-    hashCorpFunds = flags["hash-corp-funds"] || flags["hash-corp"];
-    hashCorpResearch = flags["hash-corp-research"] || flags["hash-corp"];
-    hashBladeburnerRank = flags["hash-bladeburner-rank"] || flags["hash-bladeburner"];
-    hashBladeburnerSkill = flags["hash-bladeburner-skill"] || flags["hash-bladeburner"];
-
-    if (verbose) logger.setLogLevel(2);
-    if (debug) logger.setLogLevel(3);
-
-    if (wildSpending) refreshPeriod = 1000;
+    parseFlags(ns);
 
     // Helper output
     if (help) {
@@ -855,8 +868,4 @@ export async function main(ns: NS): Promise<void> {
         processAvailableHashes(ns);
         await ns.asleep(refreshPeriod);
     }
-
-    /**
-     * Add functinality to spend hashes on increaseing server money + decreasing server min security
-     */
 }

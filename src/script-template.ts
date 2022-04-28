@@ -15,7 +15,7 @@ const flagSchema: [string, string | number | boolean | string[]][] = [
     ["v", false],
     ["verbose", false],
     ["d", false],
-    ["debug", false],
+    ["debug", false]
 ];
 
 // Flag set variables
@@ -29,6 +29,34 @@ let debug = false; // Log in debug mode
 
 /** Example variable. **/
 let argCatcher = 1;
+
+/*
+ * ------------------------
+ * > ARGUMENT AND FLAG PARSING FUNCTIONS
+ * ------------------------
+ */
+
+/**
+ * Parse script arguments.
+ * @param ns NS object.
+ */
+async function parseArgs(ns: NS): Promise<void> {
+    argCatcher = ns.args[0] as number;
+}
+
+/**
+ * Parse script flags.
+ * @param ns NS object.
+ */
+async function parseFlags(ns: NS): Promise<void> {
+    const flags = ns.flags(flagSchema);
+    help = flags.h || flags["help"];
+    verbose = flags.v || flags["verbose"];
+    debug = flags.d || flags["debug"];
+
+    if (verbose) logger.setLogLevel(2);
+    if (debug) logger.setLogLevel(3);
+}
 
 /*
  * ------------------------
@@ -133,17 +161,8 @@ export async function main(ns: NS): Promise<void> {
     ns.disableLog("ALL");
     logger = new ScriptLogger(ns, "TEST", "TEST");
 
-    // Parse args
-    argCatcher = ns.args[0] as number;
-
-    // Parse flags
-    const flags = ns.flags(flagSchema);
-    help = flags.h || flags["help"];
-    verbose = flags.v || flags["verbose"];
-    debug = flags.d || flags["debug"];
-
-    if (verbose) logger.setLogLevel(2);
-    if (debug) logger.setLogLevel(3);
+    parseArgs(ns);
+    parseFlags(ns);
 
     // Helper output
     if (help) {

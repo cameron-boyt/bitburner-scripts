@@ -2,7 +2,7 @@ import { BladeburnerCurAction, NS } from "@ns";
 import { IBladeburnerData, IBladeburnerActionInfo, IBladeburnerAction, BladeburnerActionType, IBladeburnerCityInfo, IBladeburnerSkillInfo } from "/bladeburner/bladeburner-data";
 import { runDodgerScript } from "/helpers/dodger-helper";
 import { CITIES } from "/libraries/constants";
-import { PortNumber, purgePort, writeToPort } from "/libraries/port-handler";
+import { PortNumber, purgePort, writeToPort } from "../helpers/port-helper";
 import { MessageType, ScriptLogger } from "/libraries/script-logger.js";
 
 // Script logger
@@ -63,6 +63,27 @@ const bladeburnerSkillInfo: Record<string, IBladeburnerSkillInfo> = {
     "Hands of Midas": { cost: 0, limit: 10, costMult: 150 },
     "Hyperdrive": { cost: 0, limit: Infinity, costMult: 255 },
 };
+
+
+/*
+ * ------------------------
+ * > ARGUMENT AND FLAG PARSING FUNCTIONS
+ * ------------------------
+ */
+
+/**
+ * Parse script flags.
+ * @param ns NS object.
+ */
+async function parseFlags(ns: NS): Promise<void> {
+    const flags = ns.flags(flagSchema);
+    help = flags.h || flags["help"];
+    verbose = flags.v || flags["verbose"];
+    debug = flags.d || flags["debug"];
+
+    if (verbose) logger.setLogLevel(2);
+    if (debug) logger.setLogLevel(3);
+}
 
 /*
  * ------------------------
@@ -591,14 +612,7 @@ export async function main(ns: NS): Promise<void> {
     ns.disableLog("ALL");
     logger = new ScriptLogger(ns, "BLADE", "Bladeburner Daemon");
 
-    // Parse flags
-    const flags = ns.flags(flagSchema);
-    help = flags.h || flags["help"];
-    verbose = flags.v || flags["verbose"];
-    debug = flags.d || flags["debug"];
-
-    if (verbose) logger.setLogLevel(2);
-    if (debug) logger.setLogLevel(3);
+    parseFlags(ns);
 
     // Helper output
     if (help) {
