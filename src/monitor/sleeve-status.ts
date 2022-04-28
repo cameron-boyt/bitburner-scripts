@@ -3,7 +3,7 @@ import { getFactionWorkTypeFromEnum } from "/data-types/faction-data";
 import { getSkillFromEnum, Skill } from "/data-types/skill-data.js";
 import { ISleeveData, ISleeveTaskCompanyWork, ISleeveTaskCrime, ISleeveTaskFactionWork, ISleeveTaskTrain, SleeveTaskType } from "/sleeves/sleeve-data.js";
 import { getSleeveSensibleSkillApproximation } from "/helpers/skill-helper";
-import { peekPort, PortNumber } from "/libraries/port-handler.js";
+import { peekPort, PortNumber } from "/helpers/port-helper.js";
 
 /** @param ns NS object */
 export async function main(ns: NS): Promise<void> {

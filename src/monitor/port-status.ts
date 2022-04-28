@@ -1,5 +1,5 @@
 import { NS } from "@ns";
-import { peekPort } from "/libraries/port-handler.js";
+import { peekPort } from "/helpers/port-helper.js";
 
 /** @param ns NS object */
 export async function main(ns: NS): Promise<void> {

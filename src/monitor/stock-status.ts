@@ -1,6 +1,6 @@
 import { NS } from "@ns";
 import { IStockData } from "../stock-market/stock-data.js";
-import { peekPort, PortNumber } from "/libraries/port-handler.js";
+import { peekPort, PortNumber } from "/helpers/port-helper.js";
 
 /** @param ns NS object */
 export async function main(ns: NS): Promise<void> {
