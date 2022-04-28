@@ -1,5 +1,5 @@
 import { NS } from "@ns";
-import { IStockData } from "../stock-market/stock-data.js";
+import { IStockData } from "/stock-market/stock-data.js";
 import { peekPort, PortNumber } from "/helpers/port-helper.js";
 
 /** @param ns NS object */

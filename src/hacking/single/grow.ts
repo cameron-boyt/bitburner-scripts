@@ -1,4 +1,4 @@
-import { NS } from "../../../NetscriptDefinitions";
+import { NS } from "@ns";
 
 /** @param ns NS object */
 export async function main(ns: NS): Promise<void> {
