@@ -1,15 +1,11 @@
-import { NS } from '@ns'
+import { NS } from "@ns";
 
-export async function main(ns : NS) : Promise<void> {
-    const uid = ns.args[0] as number;
-    const symbols : string[] = JSON.parse(ns.args[1] as string);
+export async function main(ns: NS): Promise<void> {
+    const uid = ns.args[0] as string;
+    const symbols: string[] = JSON.parse(ns.args[1] as string);
 
-    const result = [];
-
-    for (const sym of symbols) {
-        result.push({ sym: sym, position: ns.stock.getPosition(sym) });
-    }
+    const result = symbols.map((sym) => ns.stock.getPosition(sym));
 
     const filename = `/tmp/${uid}.txt`;
-    await ns.write(filename, JSON.stringify(result), 'w');
+    await ns.write(filename, JSON.stringify(result), "w");
 }

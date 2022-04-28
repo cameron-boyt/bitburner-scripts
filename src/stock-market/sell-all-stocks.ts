@@ -1,8 +1,8 @@
-import { NS } from '@ns'
-import { PortNumber, purgePort, writeToPort } from '/libraries/port-handler.js';
+import { NS } from "@ns";
+import { PortNumber, purgePort, writeToPort } from "/helpers/port-helper.js";
 
-/** @param {NS} ns 'ns' namespace parameter. */
-export async function main(ns : NS) : Promise<void> {
+/** @param ns NS object */
+export async function main(ns: NS): Promise<void> {
     purgePort(ns, PortNumber.StockSellFlag);
     await writeToPort(ns, PortNumber.StockSellFlag, "sell");
 }

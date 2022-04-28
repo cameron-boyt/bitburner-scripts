@@ -226,11 +226,11 @@ async function updateServerLists(ns: NS): Promise<void> {
     const stockData = peekPort<IStockData>(ns, PortNumber.StockData);
     if (!stockData) return;
 
-    const stockDataByReturn = stockData.stocks
-        .filter((x) => symToHostname.filter((y) => y.sym === x.sym).length > 0 && (x.longPos.shares > 0 || x.shortPos.shares > 0))
+    const stockDataByReturn = Object.values(stockData.stocks)
+        .filter((stock) => symToHostname[stock.sym] && (stock.longPos.shares > 0 || stock.shortPos.shares > 0))
         .sort((a, b) => {
-            const hostnameA = symToHostname.find((y) => y.sym === a.sym)?.server;
-            const hostnameB = symToHostname.find((y) => y.sym === b.sym)?.server;
+            const hostnameA = symToHostname[a.sym];
+            const hostnameB = symToHostname[b.sym];
             const serverA = servers.find((x) => x.hostname === hostnameA);
             const serverB = servers.find((x) => x.hostname === hostnameB);
             if (!serverA || !serverB) return -Infinity;
@@ -241,7 +241,7 @@ async function updateServerLists(ns: NS): Promise<void> {
         });
 
     for (const stock of stockDataByReturn) {
-        const hostname = symToHostname.find((y) => y.sym === stock.sym)?.server;
+        const hostname = symToHostname[stock.sym];
         if (!hostname) continue;
 
         const server = servers.find((x) => x.hostname === hostname);
