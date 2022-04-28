@@ -275,7 +275,7 @@ async function updateData(ns: NS): Promise<void> {
  * @param stock Stock object to update.
  * @returns Total value of stocks the player owns of this type.
  */
-function updateStockPosition(stock: IStockHolding, position: number[]): void {
+function updateStockPosition(stock: IStockHolding, position: [number, number, number, number]): void {
     stock.longPos.shares = position[0];
     stock.longPos.price = position[1];
     stock.shortPos.shares = position[2];
@@ -297,40 +297,15 @@ function updatePriceHistory(stock: IStockHolding, prices: [number, number]): voi
 }
 
 /**
- * Update the volatility of this stock.
- * @param stock Stock object to update.
- */
-function updateVolatility(stock: IStockHolding, volatility: number): void {
-    if (has4SAPI) {
-        stock.volatility = volatility;
-    } else {
-        // Get highest %difference between two prices
-        stock.volatility = stock.priceHistory.reduce((max, price, idx) => Math.max(max, idx == 0 ? 0 : Math.abs(stock.priceHistory[idx - 1] - price) / price), 0);
-    }
-}
-
-/**
- * Given two probabilities, detect if an inversion may have occurred.
- * @param p1 Probablity 1
- * @param p2 Probablity 1
- * @returns True if an inversion might have occurred; false otherwise.
- */
-function detectInversion(p1: number, p2: number): boolean {
-    return (
-        (p1 >= 0.5 + tol2 && p2 <= 0.5 - tol2 && p2 <= 1 - p1 + inversionDetectionTolerance) || (p1 <= 0.5 - tol2 && p2 >= 0.5 + tol2 && p2 >= 1 - p1 - inversionDetectionTolerance)
-    );
-}
-
-/**
  * Update the forecast of this stock.
  * @param stock Stock object to update.
  */
 function updateForecast(stock: IStockHolding, forecast: number): void {
     stock.forecast.lastTick = stock.forecast.current;
 
-    const getUps = (ups: number, price: number, idx: number, arr: number[]): number => {
+    const getUps = (ups: number, price: number, idx: number): number => {
         if (idx === 0) return 0;
-        else if (arr[idx - 1] > price) return ups + 1;
+        else if (stock.priceHistory[idx - 1] > price) return ups + 1;
         else return ups;
     };
 
@@ -350,6 +325,31 @@ function updateForecast(stock: IStockHolding, forecast: number): void {
     }
 
     stock.forecast.abs = Math.abs(stock.forecast.current - 0.5);
+}
+
+/**
+ * Given two probabilities, detect if an inversion may have occurred.
+ * @param p1 Probablity 1
+ * @param p2 Probablity 1
+ * @returns True if an inversion might have occurred; false otherwise.
+ */
+function detectInversion(p1: number, p2: number): boolean {
+    return (
+        (p1 >= 0.5 + tol2 && p2 <= 0.5 - tol2 && p2 <= 1 - p1 + inversionDetectionTolerance) || (p1 <= 0.5 - tol2 && p2 >= 0.5 + tol2 && p2 >= 1 - p1 - inversionDetectionTolerance)
+    );
+}
+
+/**
+ * Update the volatility of this stock.
+ * @param stock Stock object to update.
+ */
+function updateVolatility(stock: IStockHolding, volatility: number): void {
+    if (has4SAPI) {
+        stock.volatility = volatility;
+    } else {
+        // Get highest %difference between two prices
+        stock.volatility = stock.priceHistory.reduce((max, price, idx) => Math.max(max, idx == 0 ? 0 : Math.abs(stock.priceHistory[idx - 1] - price) / price), 0);
+    }
 }
 
 /**
@@ -654,9 +654,9 @@ function stockHasGoodForecast(stock: IStockHolding): boolean {
  */
 function stockHasGoodReturn(stock: IStockHolding): boolean {
     if (canShort) {
-        return has4SAPI ? stock.absReturn >= 0.0001 : stock.absReturn >= 0.00075;
+        return has4SAPI ? stock.absReturn >= 0.0005 : stock.absReturn >= 0.00075;
     } else {
-        return has4SAPI ? stock.expectedReturn >= 0.0001 : stock.expectedReturn >= 0.00075;
+        return has4SAPI ? stock.expectedReturn >= 0.0005 : stock.expectedReturn >= 0.00075;
     }
 }
 
@@ -765,7 +765,9 @@ async function doTransactionBuyShort(ns: NS, sym: string, shares: number): Promi
  */
 async function checkTickUpdate(ns: NS): Promise<boolean> {
     const stockPrices = await runDodgerScript<[number, number][]>(ns, "/stock-market/dodger/getPrice-bulk.js", symbols);
-    return Array.from(Array(symbols.length).keys()).some((i) => stockData.stocks[symbols[i]].priceHistory[0] !== Math.floor((stockPrices[i][0] + stockPrices[i][1]) / 2));
+    return Array.from(Array(symbols.length).keys()).some(
+        (i) => stockData.stocks[symbols[i]].askPrice !== stockPrices[i][0] || stockData.stocks[symbols[i]].bidPrice !== stockPrices[i][1]
+    );
 }
 
 /**
@@ -775,7 +777,7 @@ function updateTick(): void {
     detectedCycleTick += 1;
 
     let tickDelta = 0;
-    if (marketCycleDetected) tickDelta = 5;
+    if (!marketCycleDetected) tickDelta = 5;
     else if (inversionAgreementThreshold <= 8) tickDelta = 15;
     else if (inversionAgreementThreshold <= 10) tickDelta = 30;
     else tickDelta = marketCycleLength;

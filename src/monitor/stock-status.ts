@@ -46,12 +46,10 @@ export async function main(ns: NS): Promise<void> {
         let totalSell = 0;
         let totalProfit = 0;
 
-        const heldStocks = data.stocks.filter((x) => x.longPos.shares > 0 || x.shortPos.shares > 0);
+        const heldStocks = Object.values(data.stocks).filter((stock) => stock.longPos.shares > 0 || stock.shortPos.shares > 0);
+        heldStocks.sort((a, b) => b.absReturn - a.absReturn);
 
-        for (const h of heldStocks.sort((a, b) => b.absReturn - a.absReturn)) {
-            const s = data.stocks.find((x) => x.sym === h.sym);
-            if (!s) continue;
-
+        for (const h of heldStocks) {
             const sym = `${h.sym}`;
             const buyP = Math.ceil(h.longPos.shares * h.longPos.price + h.shortPos.shares * h.shortPos.price);
             const buyStr = ns.nFormat(buyP, "$0.000a");
@@ -62,12 +60,12 @@ export async function main(ns: NS): Promise<void> {
             const profitPercent = profit / buyP;
             const profitPercentStr = `${ns.nFormat(profitPercent, "0.00a%")}`;
 
-            const foreStr = `${s.forecast.current.toFixed(3)}`;
-            const shortForeStr = `${s.forecast.near.toFixed(2)}`;
-            const longForeStr = `${s.forecast.far.toFixed(2)}`;
-            const volStr = `${s.volatility.toFixed(3)}`;
-            const retStr = `${s.absReturn.toFixed(4)}`;
-            const timeStr = s.timeToCoverSpread > 1000 ? `----` : `${s.timeToCoverSpread}`;
+            const foreStr = `${h.forecast.current.toFixed(3)}`;
+            const shortForeStr = `${h.forecast.near.toFixed(2)}`;
+            const longForeStr = `${h.forecast.far.toFixed(2)}`;
+            const volStr = `${h.volatility.toFixed(3)}`;
+            const retStr = `${h.absReturn.toFixed(4)}`;
+            const timeStr = h.timeToCoverSpread > 1000 ? `----` : `${h.timeToCoverSpread}`;
 
             totalBuy += buyP;
             totalSell += sellP;
@@ -85,7 +83,7 @@ export async function main(ns: NS): Promise<void> {
         const totalBuyStr = ns.nFormat(totalBuy, "$0.000a");
         const totalSellStr = ns.nFormat(totalSell, "$0.000a");
         const totalProfitStr = ns.nFormat(totalProfit, "$0.000a");
-        const totalProfitPercent = totalProfit / totalBuy;
+        const totalProfitPercent = totalBuy > 0 ? totalProfit / totalBuy : 0;
         const totalProfitPercentStr = ns.nFormat(totalProfitPercent, "0.00a%");
 
         const currentTick = `${data.currentTick}`;
@@ -104,23 +102,22 @@ export async function main(ns: NS): Promise<void> {
         ns.print(` | ---------------------------------------------------------------------------------------------------- |`);
         ns.print(` |  SYM  |    BUY     |    SELL    |        PROFIT        | FORE  | N FC | F FC |  VOL  | ABS R. | TIME |`);
 
-        const unheldStocks = data.stocks.filter((x) => x.longPos.shares === 0 && x.shortPos.shares === 0);
-        for (const h of unheldStocks.sort((a, b) => b.absReturn - a.absReturn)) {
-            const s = data.stocks.find((x) => x.sym === h.sym);
-            if (!s) continue;
+        const unheldStocks = Object.values(data.stocks).filter((stock) => stock.longPos.shares === 0 && stock.shortPos.shares === 0);
+        unheldStocks.sort((a, b) => b.absReturn - a.absReturn);
 
+        for (const h of unheldStocks) {
             const sym = `${h.sym}`;
             const buyStr = "";
             const sellStr = "";
             const profitStr = "";
             const profitPercentStr = "";
 
-            const foreStr = `${s.forecast.current.toFixed(3)}`;
-            const shortForeStr = `${s.forecast.near.toFixed(2)}`;
-            const longForeStr = `${s.forecast.far.toFixed(2)}`;
-            const volStr = `${s.volatility.toFixed(3)}`;
-            const retStr = `${s.absReturn.toFixed(4)}`;
-            const timeStr = s.timeToCoverSpread > 1000 ? `----` : `${s.timeToCoverSpread}`;
+            const foreStr = `${h.forecast.current.toFixed(3)}`;
+            const shortForeStr = `${h.forecast.near.toFixed(2)}`;
+            const longForeStr = `${h.forecast.far.toFixed(2)}`;
+            const volStr = `${h.volatility.toFixed(3)}`;
+            const retStr = `${h.absReturn.toFixed(4)}`;
+            const timeStr = h.timeToCoverSpread >= 1000 ? `----` : `${h.timeToCoverSpread}`;
 
             ns.print(
                 ` | ${" ".repeat(symLength - sym.length) + sym} | ${" ".repeat(moneyLength - buyStr.length) + buyStr} ` +

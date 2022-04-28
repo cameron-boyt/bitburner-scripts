@@ -199,7 +199,7 @@ async function setupEnvironment(ns: NS): Promise<void> {
                         player.stocks.hasWSE &&
                         (function () {
                             const stockData = peekPort<IStockData>(ns, PortNumber.StockData);
-                            return player.money >= 100e6 || (stockData ? stockData.stocks.some((stock) => stock.longPos.shares > 0 || stock.shortPos.shares > 0) : false);
+                            return player.money >= 100e6 || (stockData ? Object.values(stockData.stocks).some((stock) => stock.longPos.shares > 0 || stock.shortPos.shares > 0) : false);
                         })(),
                 },
             ],
