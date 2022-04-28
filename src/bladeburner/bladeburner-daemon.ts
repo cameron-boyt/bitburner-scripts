@@ -2,7 +2,7 @@ import { BladeburnerCurAction, NS } from "@ns";
 import { IBladeburnerData, IBladeburnerActionInfo, IBladeburnerAction, BladeburnerActionType, IBladeburnerCityInfo, IBladeburnerSkillInfo } from "/bladeburner/bladeburner-data";
 import { runDodgerScript } from "/helpers/dodger-helper";
 import { CITIES } from "/libraries/constants";
-import { PortNumber, purgePort, writeToPort } from "../helpers/port-helper";
+import { PortNumber, purgePort, writeToPort } from "/helpers/port-helper";
 import { MessageType, ScriptLogger } from "/libraries/script-logger.js";
 
 // Script logger

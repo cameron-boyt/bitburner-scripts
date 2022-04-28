@@ -1,5 +1,5 @@
 import { NS } from "@ns";
-import { IGangData } from "../gangs/gang-data";
+import { IGangData } from "/gangs/gang-data";
 import { readAugmentData } from "/data/read-augment-data";
 import { runDodgerScript } from "/helpers/dodger-helper";
 import { AUG_PRICE_FACTOR, IAugmentInfo } from "/libraries/constants.js";

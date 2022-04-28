@@ -1,4 +1,4 @@
-import { CrimeStats, PlayerSkills, SleeveSkills } from "/../NetscriptDefinitions";
+import { CrimeStats, PlayerSkills, SleeveSkills } from "@ns";
 import { CrimeType } from "/data-types/crime-data";
 import { isPlayerSkills } from "/data-types/type-guards";
 import { readCrimeData } from "/data/read-crime-data";

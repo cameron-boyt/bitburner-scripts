@@ -1,10 +1,10 @@
-import { NS } from "../../NetscriptDefinitions";
+import { NS } from "@ns";
 import { IBladeburnerData } from "/bladeburner/bladeburner-data";
 import { ICorpData } from "/corporation/corporation-data";
 import { getActionFromEnum, HashAction, HashUpgrades, IHacknetData, IHashPurchase } from "/hacknet/hacknet-data";
 import { getAllServers } from "/helpers/server-helper";
 import { genPlayer, IPlayerObject } from "/libraries/player-factory";
-import { peekPort, PortNumber, purgePort, writeToPort } from "../helpers/port-helper";
+import { peekPort, PortNumber, purgePort, writeToPort } from "/helpers/port-helper";
 import { MessageType, ScriptLogger } from "/libraries/script-logger.js";
 import { genServer, IServerObject } from "/libraries/server-factory";
 

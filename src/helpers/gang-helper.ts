@@ -1,4 +1,4 @@
-import { BitNodeMultipliers, GangGenInfo, GangMemberInfo, GangTaskStats } from "/../NetscriptDefinitions";
+import { BitNodeMultipliers, GangGenInfo, GangMemberInfo, GangTaskStats } from "@ns";
 
 /**
  * Calculate the wanted penalty for a gang.

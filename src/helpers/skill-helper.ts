@@ -1,6 +1,6 @@
 import { BitNodeMultipliers, NS } from "@ns";
 import { Skill } from "/data-types/skill-data.js";
-import { ISleeve } from "../sleeves/sleeve-data";
+import { ISleeve } from "/sleeves/sleeve-data";
 import { runDodgerScript } from "/helpers/dodger-helper";
 import { genPlayer } from "/libraries/player-factory";
 
