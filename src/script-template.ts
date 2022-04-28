@@ -1,5 +1,5 @@
 import { NS } from "@ns";
-import { PortNumber, purgePort, writeToPort } from '/libraries/port-handler';
+import { PortNumber, purgePort, writeToPort } from "./helpers/port-helper";
 import { MessageType, ScriptLogger } from "/libraries/script-logger";
 
 // Script logger
@@ -38,10 +38,11 @@ let argCatcher = 1;
 
 /**
  * Test if this script can/should be run.
- * @param _ns NS object.
+ * @param ns NS object.
  * @returns True if the script can be run; false otherwise.
  */
-async function canRunScript(_ns: NS): Promise<boolean> {
+async function canRunScript(ns: NS): Promise<boolean> {
+    ns.prompt("Do test?");
     return true;
 }
 
@@ -53,10 +54,11 @@ async function canRunScript(_ns: NS): Promise<boolean> {
 
 /**
  * Set up the environment for this script.
- * @param _ns NS object.
+ * @param ns NS object.
  */
-async function setupEnvironment(_ns: NS): Promise<void> {
+async function setupEnvironment(ns: NS): Promise<void> {
     logger.log(argCatcher.toString());
+    ns.prompt("Do setup?");
 }
 
 /*
@@ -66,9 +68,8 @@ async function setupEnvironment(_ns: NS): Promise<void> {
  */
 
 /**
- * Test if this script can/should be run.
+ * Update cycle data for the script.
  * @param ns NS object.
- * @returns True if the script can be run; false otherwise.
  */
 async function updateData(ns: NS): Promise<void> {
     logger.log("Updating data...", { type: MessageType.debugLow });
@@ -102,7 +103,7 @@ async function doScriptFunctions(ns: NS): Promise<void> {
  */
 async function exportData(ns: NS): Promise<void> {
     logger.log("Exporting data...", { type: MessageType.debugLow });
-    purgePort(ns, PortNumber.CodingContractSolution)
+    purgePort(ns, PortNumber.CodingContractSolution);
     await writeToPort(ns, PortNumber.CodingContractSolution, "");
 }
 
@@ -158,7 +159,7 @@ export async function main(ns: NS): Promise<void> {
                 `Flags:\n` +
                 `   -h or --help    : boolean |>> Prints this.\n` +
                 `   -v or --verbose : boolean |>> Sets logging level to 2 - more verbosing logging.\n` +
-                `   -d or --debug   : boolean |>> Sets logging level to 3 - even more verbosing logging.`,
+                `   -d or --debug   : boolean |>> Sets logging level to 3 - even more verbosing logging.`
         );
 
         return;
@@ -166,7 +167,7 @@ export async function main(ns: NS): Promise<void> {
 
     if (!(await canRunScript(ns))) {
         logger.log("Conditions to run script are not met; exiting.", { type: MessageType.warning });
-		ns.exit();
+        ns.exit();
     }
 
     await setupEnvironment(ns);
