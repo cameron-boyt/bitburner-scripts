@@ -3,11 +3,6 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
-  "scripts": {
-    "watch": "npx tsc -w",
-    "lint": "eslint . --ext .ts",
-    "defs": "node ./updateDefs.js"
-  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/bitburner-official/vscode-template.git"
@@ -23,7 +18,14 @@
     "@typescript-eslint/eslint-plugin": "^4.28.4",
     "@typescript-eslint/parser": "^4.28.4",
     "eslint": "^7.31.0",
+    "prettier": "^2.6.2",
     "ts-node": "^9.1.1",
     "typescript": "^4.3.5"
+  },
+  "scripts": {
+    "watch": "npx tsc -w",
+    "lint": "eslint . --ext .ts",
+    "defs": "node ./updateDefs.js",
+    "format": "prettier --write \"src/**/*.ts\""
   }
 }
