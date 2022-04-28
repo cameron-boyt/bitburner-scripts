@@ -4,44 +4,70 @@ interface IStockTransaction {
     profit: number;
 }
 
-function isValidBuyTransaction(arr: number[], i: number): boolean {
+/**
+ * Test if a buy transcation shoud be made on a given day.
+ * @param prices Stock price array
+ * @param i Day to buy
+ * @returns True if the transaction is valid; false otherwise.
+ */
+function isValidBuyTransaction(prices: number[], i: number): boolean {
     if (i === 0) {
-        return arr[i] < arr[i + 1];
-    } else if (i === arr.length - 1) {
+        return prices[i] < prices[i + 1];
+    } else if (i === prices.length - 1) {
         return false;
     } else {
-        return arr[i] < arr[i - 1] && arr[i] < arr[i + 1];
+        return prices[i] < prices[i - 1] && prices[i] < prices[i + 1];
     }
 }
 
-function isValidSellTransaction(arr: number[], i: number): boolean {
+/**
+ * Test if a sell transcation shoud be made on a given day.
+ * @param prices Stock price array
+ * @param i Day to sell
+ * @returns True if the transaction is valid; false otherwise.
+ */
+function isValidSellTransaction(prices: number[], i: number): boolean {
     if (i === 0) {
         return false;
-    } else if (i === arr.length - 1) {
-        return arr[i] > arr[i - 1];
+    } else if (i === prices.length - 1) {
+        return prices[i] > prices[i - 1];
     } else {
-        return arr[i] > arr[i - 1] && arr[i] > arr[i + 1];
+        return prices[i] > prices[i - 1] && prices[i] > prices[i + 1];
     }
 }
 
-function getCombos(arr: IStockTransaction[], n: number): IStockTransaction[][] {
-    if (n === 0 || arr.length === 0) return [[]];
+/**
+ * Get all valid combinations of transcations from a starting list of transactions.
+ * @param transcations Array of stock transactions
+ * @param n Number of trades that can be made
+ * @returns Array of combinations of the provided transcations.
+ */
+function getCombos(transcations: IStockTransaction[], n: number): IStockTransaction[][] {
+    if (n === 0 || transcations.length === 0) return [[]];
     else {
-        console.log(`${arr.length} ${n}`);
         const data = [];
 
-        for (const txn of arr) {
-            const tmp = arr.filter((v) => v.buyday > txn.sellday || v.sellday < txn.buyday);
-            while (tmp.length > 0) {
-                break;
-            }
-            const nextData = arr.filter((v) => v.buyday > txn.sellday || v.sellday < txn.buyday);
-            const comboData = getCombos(nextData, n - 1).filter((x) => x.length > 0);
+        for (const txn of transcations) {
+            const validTransactions = transcations.filter((v) => v.buyday > txn.sellday || v.sellday < txn.buyday);
+
+            const nonConflictingTransactions = validTransactions.filter((txn1, idx) =>
+                validTransactions
+                    .filter((_, i) => idx !== i)
+                    .every((txn2) => (txn1.buyday > txn2.sellday && txn1.sellday > txn2.sellday) || (txn1.buyday < txn2.buyday && txn1.sellday < txn2.buyday))
+            );
+
+            const conflictingTransactions = validTransactions.filter((txn1) =>
+                nonConflictingTransactions.every((txn2) => txn1.buyday !== txn2.buyday && txn1.sellday !== txn2.sellday && txn1.profit !== txn2.profit)
+            );
+
+            const partialData = [txn, ...nonConflictingTransactions];
+
+            const comboData = getCombos(conflictingTransactions, n - 1).filter((x) => x.length > 0);
 
             if (comboData.length === 0) {
-                data.push([txn]);
+                data.push([...partialData]);
             } else {
-                comboData.forEach((c) => data.push([txn, ...c.flat()]));
+                comboData.forEach((c) => data.push([...partialData, ...c.flat()]));
             }
         }
 
@@ -50,9 +76,9 @@ function getCombos(arr: IStockTransaction[], n: number): IStockTransaction[][] {
 }
 
 /**
- * @param {number} tradeCount Maximum number of trades that can be performed.
- * @param {number[]} stockPrices Array of stock prices on day i.
- * @returns {number} Maximum profit attainable.
+ * @param tradeCount Maximum number of trades that can be performed.
+ * @param stockPrices Array of stock prices on day i.
+ * @returns Maximum profit attainable.
  */
 export function solveAlgorithmicStockTrader(tradeCount: number, stockPrices: number[]): number {
     console.log("Coding-Contract Algorthmic Stock Trader");
@@ -70,26 +96,13 @@ export function solveAlgorithmicStockTrader(tradeCount: number, stockPrices: num
         }
     }
 
-    let pruned = [...txns];
+    console.log(txns);
 
-    for (const x of pruned) console.log(x);
-
-    let change = true;
-    while (change) {
-        change = false;
-
-        for (let i = 0; i < pruned.length; i++) {
-            const txn = pruned[i];
-            const beforeLength = pruned.length;
-            pruned = pruned.filter((x) => !(x.buyday === txn.buyday && x.sellday > txn.sellday && x.profit <= txn.profit));
-            const afterLength = pruned.length;
-
-            if (beforeLength !== afterLength) {
-                change = true;
-                break;
-            }
-        }
-    }
+    const pruned = txns.filter(
+        (t1) =>
+            txns.filter((t2) => t2.buyday === t1.buyday && t2.sellday < t1.sellday && t2.profit >= t1.profit).length === 0 &&
+            txns.filter((t2) => t2.sellday === t1.sellday && t2.buyday > t1.buyday && t2.profit >= t1.profit).length === 0
+    );
 
     console.log("---");
     for (const x of pruned) console.log(x);
@@ -97,16 +110,16 @@ export function solveAlgorithmicStockTrader(tradeCount: number, stockPrices: num
     if (txns.length === 0) {
         return 0;
     } else {
-        //const combos = getCombos(pruned, tradeCount);
-        //const results = combos.map(x => x.map(y => y.profit).reduce((a, b) => a + b, 0));
-        //const solution = results.sort((a, b) => b - a)[0];
-        return 0;
+        const combos = getCombos(pruned, tradeCount);
+        const results = combos.map((combo) => combo.map((txn) => txn.profit).reduce((a, b) => a + b, 0)).sort((a, b) => b - a);
+        const solution = results[0];
+
         const end = new Date().getTime();
         console.log(`Finished solver in ${end - start}ms`);
         console.log("Solution:");
-        //console.log(solution);
+        console.log(solution);
         console.log("---");
 
-        //return solution;
+        return solution;
     }
 }
