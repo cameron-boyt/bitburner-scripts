@@ -1,7 +1,7 @@
-import { NS } from '@ns'
+import { NS } from "@ns";
 
-/** @param {NS} ns 'ns' namespace parameter. */
-export async function main(ns : NS) : Promise<void> {
+/** @param ns NS object */
+export async function main(ns: NS): Promise<void> {
     const confirm = await ns.prompt("Are you sure you wish to delete ALL files?");
 
     if (confirm) {
