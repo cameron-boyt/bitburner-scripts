@@ -1,15 +1,11 @@
-import { NS } from '@ns'
+import { NS } from "@ns";
 
-export async function main(ns : NS) : Promise<void> {
-    const uid = ns.args[0] as number;
-    const factions : string[] = JSON.parse(ns.args[1] as string);
+export async function main(ns: NS): Promise<void> {
+    const uid = ns.args[0] as string;
+    const factions: string[] = JSON.parse(ns.args[1] as string);
 
-    const result = [];
-
-    for (const faction of factions) {
-        result.push({ faction: faction, augments: ns.singularity.getAugmentationsFromFaction(faction) });
-    }
+    const result = factions.map((faction) => ns.singularity.getAugmentationsFromFaction(faction));
 
     const filename = `/tmp/${uid}.txt`;
-    await ns.write(filename, JSON.stringify(result), 'w');
+    await ns.write(filename, JSON.stringify(result), "w");
 }
