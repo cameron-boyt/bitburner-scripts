@@ -1,4 +1,4 @@
-import { AugmentationStats, NS } from "../../NetscriptDefinitions";
+import { AugmentationStats, NS } from "@ns";
 import { ALL_FACTIONS } from "/libraries/constants.js";
 
 interface IAugInfo {

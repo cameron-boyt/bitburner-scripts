@@ -1,5 +1,5 @@
 import { NS } from "@ns";
-import { IHacknetData } from "../hacknet/hacknet-data.js";
+import { IHacknetData } from "/hacknet/hacknet-data.js";
 import { peekPort, PortNumber } from "/helpers/port-helper.js";
 
 /** @param ns NS object */

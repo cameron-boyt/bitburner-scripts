@@ -6,7 +6,7 @@ import { runDodgerScript } from "/helpers/dodger-helper";
 import { calculateCrimeChance, getBestCrime } from "/helpers/crime-helper";
 import { doSkillTraining } from "/helpers/skill-helper";
 import { Skill } from "/data-types/skill-data";
-import { peekPort, PortNumber } from "../helpers/port-helper";
+import { peekPort, PortNumber } from "/helpers/port-helper";
 import { ISleeveData, ISleeveTaskCrime, SleeveTaskType } from "/sleeves/sleeve-data";
 
 // Script logger

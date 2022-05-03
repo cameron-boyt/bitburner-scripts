@@ -1,5 +1,5 @@
-import { AugmentationStats, Player, PlayerSkills } from "/../NetscriptDefinitions";
-import { IGrowCycle, IHackCycle, IWeakenCycle } from "../hacking/hacking-data";
+import { AugmentationStats, Player, PlayerSkills } from "@ns";
+import { IGrowCycle, IHackCycle, IWeakenCycle } from "/hacking/hacking-data";
 
 /**
  * Guard to ensure type: number

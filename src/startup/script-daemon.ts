@@ -4,14 +4,14 @@ import { genServer, IServerObject } from "/libraries/server-factory";
 import { MessageType, ScriptLogger } from "/libraries/script-logger";
 import { readBitnodeMultiplierData } from "/data/read-bitnodemult-data";
 import { runDodgerScript, runDodgerScriptBulk } from "/helpers/dodger-helper";
-import { peekPort, PortNumber } from "../helpers/port-helper";
-import { IStockData } from "../stock-market/stock-data";
+import { peekPort, PortNumber } from "/helpers/port-helper";
+import { IStockData } from "/stock-market/stock-data";
 import { getPlayerSensibleSkillApproximation } from "/helpers/skill-helper";
 import { Skill } from "/data-types/skill-data";
-import { ICorpData } from "../corporation/corporation-data";
+import { ICorpData } from "/corporation/corporation-data";
 import { getFreeRam } from "/helpers/server-helper";
 import { IScriptRun } from "/data-types/dodger-data";
-import { IGangData } from "../gangs/gang-data";
+import { IGangData } from "/gangs/gang-data";
 
 // Script logger
 let logger: ScriptLogger;

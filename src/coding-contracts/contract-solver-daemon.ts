@@ -13,6 +13,7 @@ import { solveMinimumPathSumInATriangle } from "/coding-contracts/solvers/minimu
 import { solveSanitiseParenthesesInExpression } from "/coding-contracts/solvers/sanitise-paretheses-in-expression.js";
 import { getAllServers } from "/helpers/server-helper";
 import { runDodgerScript } from "/helpers/dodger-helper";
+import { solveCompressionLZCompress, solveCompressionLZDecompress, solveCompressionRLECompress } from '/coding-contracts/solvers/compression';
 
 // Script logger
 let logger: ScriptLogger;
@@ -27,7 +28,7 @@ const flagSchema: [string, string | number | boolean | string[]][] = [
     ["v", false],
     ["verbose", false],
     ["d", false],
-    ["debug", false],
+    ["debug", false]
 ];
 
 // Flag set variables
@@ -130,6 +131,12 @@ function getContractSolution(type: string, data: never): unknown {
             return solveMinimumPathSumInATriangle(data as number[][]);
         case "Sanitize Parentheses in Expression":
             return solveSanitiseParenthesesInExpression(data as string);
+        case "Compression I: RLE Compression":
+            return solveCompressionRLECompress(data as string);
+        case "Compression II: LZ Decompression":
+            return solveCompressionLZDecompress(data as string);
+        case "Compression III: LZ Compression":
+            return solveCompressionLZCompress(data as string);
         default:
             return undefined;
     }
@@ -153,7 +160,7 @@ async function processContractSolution(ns: NS, contract: IContract, solution: un
             logger.log(`Attempt at ${contract.name} from ${contract.hostname} [${contract.type}] was unsuccessful. ${remainingTries} tries remaining`, {
                 type: MessageType.error,
                 logToTerminal: true,
-                sendToast: true,
+                sendToast: true
             });
             ns.exit();
             await ns.asleep(5000);

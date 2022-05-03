@@ -1,5 +1,5 @@
 import { NS } from "@ns";
-import { ICorpData } from "../corporation/corporation-data.js";
+import { ICorpData } from "/corporation/corporation-data.js";
 import { PRODUCT_INDUSTRIES } from "/libraries/constants.js";
 import { peekPort, PortNumber } from "/helpers/port-helper.js";
 

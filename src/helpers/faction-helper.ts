@@ -1,4 +1,4 @@
-import { PlayerSkills, SleeveSkills } from "/../NetscriptDefinitions";
+import { PlayerSkills, SleeveSkills } from "@ns";
 import { FactionWorkType, factionAvailableWorkTypes } from "/data-types/faction-data";
 import { isPlayerSkills } from "/data-types/type-guards";
 
