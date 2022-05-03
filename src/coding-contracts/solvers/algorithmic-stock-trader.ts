@@ -5,74 +5,123 @@ interface IStockTransaction {
 }
 
 /**
- * Test if a buy transcation shoud be made on a given day.
+ * Test if a buy transcation should be made on a given day.
  * @param prices Stock price array
  * @param i Day to buy
  * @returns True if the transaction is valid; false otherwise.
  */
 function isValidBuyTransaction(prices: number[], i: number): boolean {
-    if (i === 0) {
+    if (i < prices.length - 1) {
         return prices[i] < prices[i + 1];
-    } else if (i === prices.length - 1) {
-        return false;
     } else {
-        return prices[i] < prices[i - 1] && prices[i] < prices[i + 1];
+        return false;
     }
 }
 
 /**
- * Test if a sell transcation shoud be made on a given day.
+ * Test if a sell transcation should be made on a given day.
  * @param prices Stock price array
  * @param i Day to sell
  * @returns True if the transaction is valid; false otherwise.
  */
 function isValidSellTransaction(prices: number[], i: number): boolean {
-    if (i === 0) {
-        return false;
-    } else if (i === prices.length - 1) {
+    if (i > 0) {
         return prices[i] > prices[i - 1];
     } else {
-        return prices[i] > prices[i - 1] && prices[i] > prices[i + 1];
+        return false;
     }
 }
 
 /**
  * Get all valid combinations of transcations from a starting list of transactions.
- * @param transcations Array of stock transactions
- * @param n Number of trades that can be made
+ * @param transcations Array of stock transactions indexed by buy day.
+ * @param n Maximum number of trades that can be made.
  * @returns Array of combinations of the provided transcations.
  */
-function getCombos(transcations: IStockTransaction[], n: number): IStockTransaction[][] {
-    if (n === 0 || transcations.length === 0) return [[]];
-    else {
-        const data = [];
+function getCombos(transcations: IStockTransaction[][], n: number): IStockTransaction[][] {
+    n = Math.min(Math.ceil(transcations.length / 2), n);
+    let txnData: IStockTransaction[][] = [[]];
 
-        for (const txn of transcations) {
-            const validTransactions = transcations.filter((v) => v.buyday > txn.sellday || v.sellday < txn.buyday);
+    // Loop through each day in the stock prices
+    for (let i = 0; i < transcations.length; i++) {
+        const updatedData = createNewTransactionCombinations(txnData, transcations, i);
+        txnData = pruneTransactionSets(updatedData, n, i);
+    }
 
-            const nonConflictingTransactions = validTransactions.filter((txn1, idx) =>
-                validTransactions
-                    .filter((_, i) => idx !== i)
-                    .every((txn2) => (txn1.buyday > txn2.sellday && txn1.sellday > txn2.sellday) || (txn1.buyday < txn2.buyday && txn1.sellday < txn2.buyday))
-            );
+    return txnData.filter((txnSet) => txnSet.length <= n);
+}
 
-            const conflictingTransactions = validTransactions.filter((txn1) =>
-                nonConflictingTransactions.every((txn2) => txn1.buyday !== txn2.buyday && txn1.sellday !== txn2.sellday && txn1.profit !== txn2.profit)
-            );
+/**
+ * Create an updated collection of transaction sets using the next day's transactions.
+ * @param transactionsSets Existing transaction sets.
+ * @param allTransactions Array of all possible transcations indexed by buy day.
+ * @param day Current day.
+ * @returns A new collection of transcation sets.
+ */
+function createNewTransactionCombinations(transactionsSets: IStockTransaction[][], allTransactions: IStockTransaction[][], day: number): IStockTransaction[][] {
+    const newTransactionSets: IStockTransaction[][] = [];
 
-            const partialData = [txn, ...nonConflictingTransactions];
+    for (const data of transactionsSets) {
+        // Push the equivalent of doing nothing
+        newTransactionSets.push(data);
 
-            const comboData = getCombos(conflictingTransactions, n - 1).filter((x) => x.length > 0);
+        // Push a scenario where each possible transaction is made
+        const lastSellDay = data.length > 0 ? data.map((txn) => txn.sellday).sort((a, b) => b - a)[0] : -1;
+        const valid = allTransactions[day].filter((txn) => txn.buyday > lastSellDay);
+        if (valid.length > 0) {
+            newTransactionSets.push(...valid.map((txn) => [...data, txn]));
+        }
+    }
 
-            if (comboData.length === 0) {
-                data.push([...partialData]);
-            } else {
-                comboData.forEach((c) => data.push([...partialData, ...c.flat()]));
-            }
+    return newTransactionSets;
+}
+
+/**
+ * Prune the provided collection by filtering out equal length sets that provide a lesser profit.
+ * Create an updated collection of transaction sets using the next day's transactions.
+ * @param transactionsSets Existing transaction sets.
+ * @param maximumTransactions The maximum number of transactions allowed.
+ * @param day Current day.
+ * @returns A collection of pruned transaction sets.
+ */
+function pruneTransactionSets(transactionsSets: IStockTransaction[][], maximumTransactions: number, day: number): IStockTransaction[][] {
+    const transactionsByLength: IStockTransaction[][][] = Array(maximumTransactions + 1)
+        .fill(null)
+        .map((_) => []);
+
+    // Filter transaction sets by length
+    for (let l = 1; l <= maximumTransactions; l++) {
+        // Get a list of transaction sets that match the given length
+        const transactionSets = [...transactionsSets.filter((txnSet) => txnSet.length === l)];
+        if (transactionSets.length === 0) {
+            continue;
         }
 
-        return data;
+        // Do not prune transcation sets where the current day is not the maximum sell day of the set
+        const toNotPrune = transactionSets.filter((txnSet) => txnSet.map((txn) => txn.sellday).sort((a, b) => b - a)[0] > day);
+        if (toNotPrune.length > 0) transactionsByLength[l].push(...toNotPrune);
+
+        // Prune on the set with the highest profit that ends on a given sell date
+        const toPrune = transactionSets.filter((txnSet) => txnSet.map((txn) => txn.sellday).sort((a, b) => b - a)[0] <= day);
+        const bestTransactionSet = getBestTransactionSet(toPrune);
+
+        if (toPrune.length > 0) transactionsByLength[l].push(bestTransactionSet);
     }
+
+    return [[], ...transactionsByLength.flat()];
+}
+
+function getBestTransactionSet(transactionSets: IStockTransaction[][]): IStockTransaction[] {
+    transactionSets.sort((a, b) => {
+        const aP = a.map((txn) => txn.profit);
+        const bP = b.map((txn) => txn.profit);
+        const aTot = aP.length === 1 ? aP[0] : aP.reduce((x, y) => x + y, 0);
+        const bTot = bP.length === 1 ? bP[0] : bP.reduce((x, y) => x + y, 0);
+
+        return bTot - aTot;
+    });
+
+    return transactionSets[0];
 }
 
 /**
@@ -90,7 +139,7 @@ export function solveAlgorithmicStockTrader(tradeCount: number, stockPrices: num
 
     for (let i = 0; i < stockPrices.length; i++) {
         for (let j = i + 1; j < stockPrices.length; j++) {
-            if (isValidBuyTransaction(stockPrices, i) && isValidSellTransaction(stockPrices, j) && stockPrices[j] !== stockPrices[i]) {
+            if (isValidBuyTransaction(stockPrices, i) && isValidSellTransaction(stockPrices, j) && stockPrices[j] > stockPrices[i]) {
                 txns.push({ buyday: i, sellday: j, profit: stockPrices[j] - stockPrices[i] });
             }
         }
@@ -98,19 +147,35 @@ export function solveAlgorithmicStockTrader(tradeCount: number, stockPrices: num
 
     console.log(txns);
 
-    const pruned = txns.filter(
-        (t1) =>
-            txns.filter((t2) => t2.buyday === t1.buyday && t2.sellday < t1.sellday && t2.profit >= t1.profit).length === 0 &&
-            txns.filter((t2) => t2.sellday === t1.sellday && t2.buyday > t1.buyday && t2.profit >= t1.profit).length === 0
-    );
+    const pruned = txns
+        .filter((txn) => txn.profit > 0)
+        .filter(
+            (t1) =>
+                txns.filter((t2) => t2.buyday === t1.buyday && t2.sellday < t1.sellday && t2.profit >= t1.profit).length === 0 &&
+                txns.filter((t2) => t2.sellday === t1.sellday && t2.buyday > t1.buyday && t2.profit >= t1.profit).length === 0
+        );
 
     console.log("---");
-    for (const x of pruned) console.log(x);
+    console.log(pruned);
 
-    if (txns.length === 0) {
+    if (pruned.length === 0) {
         return 0;
+    } else if (pruned.length === 1) {
+        return pruned[0].profit;
     } else {
-        const combos = getCombos(pruned, tradeCount);
+        const highestBuyDay = pruned.map((txn) => txn.buyday).sort((a, b) => b - a)[0];
+        const transcationsByBuyDay: IStockTransaction[][] = Array(highestBuyDay + 1)
+            .fill(null)
+            .map((_) => []);
+
+        for (let i = 0; i <= highestBuyDay; i++) {
+            transcationsByBuyDay[i] = pruned.filter((txn) => txn.buyday === i);
+        }
+
+        console.log("---");
+        console.log(transcationsByBuyDay);
+
+        const combos = getCombos(transcationsByBuyDay, tradeCount);
         const results = combos.map((combo) => combo.map((txn) => txn.profit).reduce((a, b) => a + b, 0)).sort((a, b) => b - a);
         const solution = results[0];
 
